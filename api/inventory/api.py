@@ -4,11 +4,55 @@ from rest_framework import status
 from .models import User, Role
 from .serializer import UserSerializer, RoleSerializer
 from django.shortcuts import get_object_or_404
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework.pagination import PageNumberPagination
 from .filters import UserFilter 
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User 
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.authtoken.models import Token
+from rest_framework.decorators import authentication_classes, permission_classes
+from django.contrib.auth import get_user_model
+
+class UserLoginAPIView(APIView):
+    authentication_classes = []
+
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        User = get_user_model()
+        user = User.objects.filter(username=username).first()
+        if user is not None and user.check_password(password):
+            if user.is_active:
+                login(request, user)
+                token, created = Token.objects.get_or_create(user=user)
+                return Response({'message': 'Inicio de sesión exitoso', 'token': token.key}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'Este usuario está inactivo'}, status=status.HTTP_401_UNAUTHORIZED)
+        else:
+            return Response({"detail": "Nombre de usuario o contraseña inválidos."}, status=status.HTTP_400_BAD_REQUEST)
+
+class UserLogoutAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        Token.objects.filter(user=request.user).delete()
+        logout(request)
+        return Response({'message': 'Sesión cerrada exitosamente'}, status=status.HTTP_200_OK)
+    
+class UserRegisterAPIView(APIView):
+    def post(self, request):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class CustomPagination(PageNumberPagination):
     page_size_query_param = 'pag'
+
 
 class UserIndexAPIView(APIView):
     def get(self, request):
@@ -35,6 +79,7 @@ class UserIndexAPIView(APIView):
                     "errors": str(e)
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
     
 class UserStoreAPIView(APIView):
     def post(self, request):
@@ -91,6 +136,8 @@ class UserRestoreAPIView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
 class RoleIndexAPIView(APIView):
     def get(self, request):
         try:
@@ -123,6 +170,8 @@ class RoleStoreAPIView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class RoleShowAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
     def get(self, request, pk):
         try:
             role = get_object_or_404(Role, pk=pk)
