@@ -1,13 +1,13 @@
 from django.urls import path
 from inventory.api import (UserIndexAPIView, UserStoreAPIView, UserShowAPIView, UserUpdateAPIView, UserDeleteAPIView, UserRestoreAPIView,
                            RoleIndexAPIView, RoleStoreAPIView, RoleShowAPIView, RoleUpdateAPIView, RoleDeleteAPIView, RoleRestoreAPIView, 
-                            UserLoginAPIView, UserLogoutAPIView, UserRegisterAPIView,
+                            UserLogoutAPIView, UserLoginAPIView, UserRegistration,
                            )
 urlpatterns = [
-    path('login', UserLoginAPIView.as_view(), name='login'),
+    path('login/', UserLoginAPIView.as_view(), name='login'),
     path('logout/', UserLogoutAPIView.as_view(), name='logout'),
-    path('register/', UserRegisterAPIView.as_view(), name='register'),
-    path('users/', UserIndexAPIView.as_view(), name='user-list'),
+    path('register/', UserRegistration.as_view(), name='user-registration'),
+    path('users', UserIndexAPIView.as_view(), name='user-list'),
     path('user/create', UserStoreAPIView.as_view(), name='user-create'),
     path('user/<int:pk>', UserShowAPIView.as_view(), name='user-detail'),
     path('user/update/<int:pk>', UserUpdateAPIView.as_view(), name='user-update'),

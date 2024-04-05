@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password 
-from .models import User, Role
-from rest_framework_simplejwt.tokens import RefreshToken
+from .models import Role
+from inventory.models import User
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -13,6 +13,15 @@ class RoleSerializer(serializers.ModelSerializer):
                   'created_at',
                   'updated_at',
                   'deleted_at',  ]
+    def validate_name(self, value):
+
+        if Role.objects.filter(name=value).exists():
+            raise serializers.ValidationError("Ya existe un rol con este nombre.")
+        return value
+
+    def create(self, validated_data):
+
+        return Role.objects.create(**validated_data)
 
 class UserSerializer(serializers.ModelSerializer):
     role = RoleSerializer(read_only=True)
@@ -25,12 +34,13 @@ class UserSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        # Obtener el rol predeterminado (por ejemplo, el rol con ID 1)
+        # Obtener el rol predeterminado (por ejemplo, el rol con ID 3)
         default_role = Role.objects.get(id=3)
         # Asignar el rol predeterminado al usuario
         validated_data['role'] = default_role
         validated_data['password'] = make_password(validated_data['password']) 
         return super().create(validated_data)
+    
     class Meta:
         model = User
         fields = ['id', 
