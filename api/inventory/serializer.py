@@ -22,9 +22,10 @@ class RoleSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
 
         return Role.objects.create(**validated_data)
-    
+
 class UserSerializer(serializers.ModelSerializer):
     role = RoleSerializer(read_only=True)
+    role_id = serializers.IntegerField(write_only=True)  # Asegúrate de agregar este campo write_only
 
     def validate_password(self, value):
         if len(value) < 8:
@@ -32,35 +33,36 @@ class UserSerializer(serializers.ModelSerializer):
         if not any(char.isdigit() for char in value) or not any(char.isalpha() for char in value):
             raise serializers.ValidationError("La contraseña debe ser alfanumérica.")
         return value
-
-    def validate_role_id(self, value):
-        if not Role.objects.filter(id=value).exists():
-            raise serializers.ValidationError("El rol especificado no existe.")
-        return value
-
+    
     def create(self, validated_data):
-        validated_data['password'] = make_password(validated_data['password'])
-        return super().create(validated_data)
+        role_id = validated_data.pop('role_id')
+        validated_data['password'] = make_password(validated_data['password']) 
+        user = super().create(validated_data)
+        role = Role.objects.get(pk=role_id)
+        user.role = role
+        user.save()
+        return user
 
     class Meta:
         model = User
-        fields = ['id',
-                  'username',
-                  'password',
-                  'email',
-                  'name',
-                  'last_name',
+        fields = ['id', 
+                  'username', 
+                  'password', 
+                  'email', 
+                  'name', 
+                  'last_name', 
                   'role_id',
-                  'image',
-                  'document',
+                  'image', 
+                  'document', 
                   'address',
                   'phone_number',
                   'is_active',
                   'is_staff',
                   'created_at',
                   'updated_at',
-                  'deleted_at',
-                  'role']
+                  'deleted_at',  
+                  'role', ]
+
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 

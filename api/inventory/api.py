@@ -101,14 +101,13 @@ class UserShowAPIView(APIView):
 
     def get(self, request, pk):
         try:
-            # Verifica si el usuario existe
+
             user = User.objects.filter(pk=pk).first()
             if not user:
                 return Response({
                     "mensaje": "El ID de usuario no está registrado."
                 }, status=status.HTTP_404_NOT_FOUND)
 
-            # Si el usuario existe, procede con la serialización y la respuesta
             serializer = UserSerializer(user)
             return Response(serializer.data)
 
@@ -128,7 +127,7 @@ class UserUpdateAPIView(APIView):
 
     def put(self, request, pk):
         try:
-            # Verificar si el usuario existe
+
             user = User.objects.filter(pk=pk).first()
             if not user:
                 return Response({
@@ -249,14 +248,14 @@ class RoleShowAPIView(APIView):
 
     def get(self, request, pk):
         try:
-            # Verifica si el rol existe
+
             role = Role.objects.filter(pk=pk).first()
             if not role:
                 return Response({
                     "mensaje": "El ID del rol no está registrado."
                 }, status=status.HTTP_404_NOT_FOUND)
 
-            # Si el rol existe, procede con la serialización y la respuesta
+
             serializer = RoleSerializer(role)
             return Response(serializer.data)
 
@@ -276,7 +275,7 @@ class RoleUpdateAPIView(APIView):
 
     def put(self, request, pk):
         try:
-            role = Role.objects.get(pk=pk)  # Utiliza get en lugar de get_object_or_404 para controlar manualmente el error
+            role = Role.objects.get(pk=pk) 
             data = request.data
             
             for field, value in data.items():
@@ -287,7 +286,7 @@ class RoleUpdateAPIView(APIView):
             
             serializer = RoleSerializer(role)
             return Response(serializer.data)
-        except Role.DoesNotExist:  # Captura la excepción cuando el objeto no existe
+        except Role.DoesNotExist:
             return Response({
                 "data": {
                     "code": status.HTTP_404_NOT_FOUND,
@@ -393,14 +392,14 @@ class CategoryShowAPIView(APIView):
 
     def get(self, request, pk):
         try:
-            # Verifica si la categoría existe
+
             category = Category.objects.filter(pk=pk).first()
             if not category:
                 return Response({
                     "mensaje": "El ID de la categoría no está registrado."
                 }, status=status.HTTP_404_NOT_FOUND)
 
-            # Si la categoría existe, procede con la serialización y la respuesta
+
             serializer = CategorySerializer(category)
             return Response(serializer.data)
 
@@ -419,7 +418,7 @@ class CategoryUpdateAPIView(APIView):
 
     def put(self, request, pk):
         try:
-            # Verificar si existe el usuario con el ID proporcionado
+
             try:
                 category = Category.objects.get(pk=pk)
             except Category.DoesNotExist:
@@ -540,7 +539,7 @@ class UnitShowAPIView(APIView):
                     "mensaje": "El ID de la unidad no está registrado."
                 }, status=status.HTTP_404_NOT_FOUND)
 
-            # Si la unidad existe, procede con la serialización y la respuesta
+
             serializer = UnitSerializer(unit)
             return Response(serializer.data)
 
@@ -559,7 +558,7 @@ class UnitUpdateAPIView(APIView):
 
     def put(self, request, pk):
         try:
-            # Verificar si el user_id existe
+
             if not Units.objects.filter(pk=pk).exists():
                 return Response({
                     "message": "El ID no está registrado"
@@ -632,7 +631,7 @@ class CoinIndexAPIView(APIView):
             coins = Coin.objects.all()
 
             if 'pag' in request.query_params:
-                pagination = CustomPagination()  # Asegúrate de importar tu paginador personalizado si lo estás utilizando
+                pagination = CustomPagination()
                 paginated_coins = pagination.paginate_queryset(coins, request)
                 serializer = CoinSerializer(paginated_coins, many=True)
                 return pagination.get_paginated_response({"coins": serializer.data})
@@ -675,14 +674,13 @@ class CoinShowAPIView(APIView):
 
     def get(self, request, pk):
         try:
-            # Verifica si la moneda existe
             coin = Coin.objects.filter(pk=pk).first()
             if not coin:
                 return Response({
                     "mensaje": "El ID de la moneda no está registrado."
                 }, status=status.HTTP_404_NOT_FOUND)
 
-            # Si la moneda existe, procede con la serialización y la respuesta
+
             serializer = CoinSerializer(coin)
             return Response(serializer.data)
 
