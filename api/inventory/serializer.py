@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password 
-from .models import Role
+from .models import Role, Category, Units, Coin
 from inventory.models import User
 
 
@@ -22,7 +22,7 @@ class RoleSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
 
         return Role.objects.create(**validated_data)
-
+    
 class UserSerializer(serializers.ModelSerializer):
     role = RoleSerializer(read_only=True)
 
@@ -33,30 +33,107 @@ class UserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("La contraseña debe ser alfanumérica.")
         return value
 
+    def validate_role_id(self, value):
+        if not Role.objects.filter(id=value).exists():
+            raise serializers.ValidationError("El rol especificado no existe.")
+        return value
+
     def create(self, validated_data):
-        # Obtener el rol predeterminado (por ejemplo, el rol con ID 3)
-        default_role = Role.objects.get(id=3)
-        # Asignar el rol predeterminado al usuario
-        validated_data['role'] = default_role
-        validated_data['password'] = make_password(validated_data['password']) 
+        validated_data['password'] = make_password(validated_data['password'])
         return super().create(validated_data)
-    
+
     class Meta:
         model = User
-        fields = ['id', 
-                  'username', 
-                  'password', 
-                  'email', 
-                  'name', 
-                  'last_name', 
+        fields = ['id',
+                  'username',
+                  'password',
+                  'email',
+                  'name',
+                  'last_name',
                   'role_id',
-                  'image', 
-                  'document', 
+                  'image',
+                  'document',
                   'address',
                   'phone_number',
                   'is_active',
                   'is_staff',
                   'created_at',
                   'updated_at',
-                  'deleted_at',  
-                  'role', ]
+                  'deleted_at',
+                  'role']
+class UserRegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 
+                  'password', 
+                  'email', 
+                  'name', 
+                  'last_name', 
+                  'document', 
+                  'address',
+                  'phone_number', ]
+
+    def validate_password(self, value):
+        if len(value) < 8:
+            raise serializers.ValidationError("La contraseña debe tener al menos 8 caracteres.")
+        if not any(char.isdigit() for char in value) or not any(char.isalpha() for char in value):
+            raise serializers.ValidationError("La contraseña debe ser alfanumérica.")
+        return value
+
+    def create(self, validated_data):
+        default_role = Role.objects.get(id=3)
+        validated_data['role'] = default_role
+        validated_data['password'] = make_password(validated_data['password']) 
+        return super(UserRegisterSerializer, self).create(validated_data)
+    
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 
+                  'name', 
+                  'description', 
+                  'created_at',
+                  'updated_at',
+                  'deleted_at',  ]
+
+    def validate_name(self, value):
+        if Category.objects.filter(name=value).exists():
+            raise serializers.ValidationError("Ya existe una categoría con este nombre.")
+        return value
+
+    def create(self, validated_data):
+        return Category.objects.create(**validated_data)
+    
+class UnitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Units
+        fields = ['id', 
+                  'name', 
+                  'description', 
+                  'abbreviation', 
+                  'created_at',
+                  'updated_at',
+                  'deleted_at']
+
+    def validate_name(self, value):
+        if Units.objects.filter(name=value).exists():
+            raise serializers.ValidationError("Ya existe una unidad con este nombre.")
+        return value
+
+    def create(self, validated_data):
+        return Units.objects.create(**validated_data)
+    
+class CoinSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Coin
+        fields = ['id', 'name', 'description', 'symbol', 'abbreviation', 'created_at', 'updated_at', 'deleted_at']
+
+    def validate_name(self, value):
+        if Coin.objects.filter(name=value).exists():
+            raise serializers.ValidationError("Ya existe una moneda con este nombre.")
+        return value
+
+    def create(self, validated_data):
+        return Coin.objects.create(**validated_data)

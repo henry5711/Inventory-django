@@ -30,6 +30,8 @@ SESSION_COOKIE_AGE = 3600
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True 
 
+CSRF_COOKIE_SECURE = False 
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -42,6 +44,7 @@ INSTALLED_APPS = [
     'inventory',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework.authtoken',
     'simple_history',
     'django_filters',
 ]

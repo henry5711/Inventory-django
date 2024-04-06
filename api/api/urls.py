@@ -1,7 +1,10 @@
 from django.urls import path
 from inventory.api import (UserIndexAPIView, UserStoreAPIView, UserShowAPIView, UserUpdateAPIView, UserDeleteAPIView, UserRestoreAPIView,
-                           RoleIndexAPIView, RoleStoreAPIView, RoleShowAPIView, RoleUpdateAPIView, RoleDeleteAPIView, RoleRestoreAPIView, 
-                            UserLogoutAPIView, UserLoginAPIView, UserRegistration,
+                            RoleIndexAPIView, RoleStoreAPIView, RoleShowAPIView, RoleUpdateAPIView, RoleDeleteAPIView, RoleRestoreAPIView, 
+                            UserLogoutAPIView, UserLoginAPIView, UserRegistration, CategoryIndexAPIView, CategoryStoreAPIView,
+                            CategoryShowAPIView, CategoryUpdateAPIView, CategoryDeleteAPIView, CategoryRestoreAPIView, UnitIndexAPIView, 
+                            UnitStoreAPIView, UnitShowAPIView, UnitUpdateAPIView, UnitDeleteAPIView, UnitRestoreAPIView, CoinIndexAPIView, 
+                            CoinStoreAPIView, CoinShowAPIView, CoinUpdateAPIView, CoinDeleteAPIView, CoinRestoreAPIView,
                            )
 urlpatterns = [
     path('login/', UserLoginAPIView.as_view(), name='login'),
@@ -19,4 +22,24 @@ urlpatterns = [
     path('role/update/<int:pk>', RoleUpdateAPIView.as_view(), name='role-update'),
     path('role/delete/<int:pk>', RoleDeleteAPIView.as_view(), name='role-delete'),
     path('role/restore/<int:pk>', RoleRestoreAPIView.as_view(), name='role-restore'),
+    path('category', CategoryIndexAPIView.as_view(), name='category-index'),
+    path('category/create', CategoryStoreAPIView.as_view(), name='category-store'),
+    path('category/<int:pk>', CategoryShowAPIView.as_view(), name='category-detail'),
+    path('category/update/<int:pk>', CategoryUpdateAPIView.as_view(), name='category-update'),
+    path('category/delete/<int:pk>', CategoryDeleteAPIView.as_view(), name='category-delete'),
+    path('category/restore/<int:pk>', CategoryRestoreAPIView.as_view(), name='category-restore'),
+    path('units', UnitIndexAPIView.as_view(), name='unit-index'),
+    path('unit/create', UnitStoreAPIView.as_view(), name='unit-store'),
+    path('unit/<int:pk>', UnitShowAPIView.as_view(), name='unit-detail'),
+    path('unit/update/<int:pk>', UnitUpdateAPIView.as_view(), name='unit-update'),
+    path('unit/delete/<int:pk>', UnitDeleteAPIView.as_view(), name='unit-delete'),
+    path('unit/restore/<int:pk>', UnitRestoreAPIView.as_view(), name='unit-restore'),
+    path('coins', CoinIndexAPIView.as_view(), name='coin-index'),
+    path('coin/create', CoinStoreAPIView.as_view(), name='coin-store'),
+    path('coin/<int:pk>', CoinShowAPIView.as_view(), name='coin-detail'),
+    path('coin/update/<int:pk>', CoinUpdateAPIView.as_view(), name='coin-update'),
+    path('coin/delete/<int:pk>', CoinDeleteAPIView.as_view(), name='coin-delete'),
+    path('coin/restore/<int:pk>', CoinRestoreAPIView.as_view(), name='unit-restore'),
+    
+    
 ]
