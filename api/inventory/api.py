@@ -1,13 +1,15 @@
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
-from .models import Role, Category, Units, Coin
+from .models import Role, Category, Units, Coin, Product
 from inventory.models import User
-from .serializer import UserSerializer, RoleSerializer, CategorySerializer, UnitSerializer, CoinSerializer
+from .serializer import (UserSerializer, RoleSerializer, CategorySerializer, UnitSerializer, 
+                         CoinSerializer, ProductSerializer)
 from django.shortcuts import get_object_or_404
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework.pagination import PageNumberPagination
-from .filters import UserFilter 
+from .filters import (UserFilter, RoleFilter, CategoryFilter, UnitFilter, CoinFilter, 
+                      ProductFilter)
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
@@ -200,7 +202,7 @@ class RoleIndexAPIView(APIView):
         try:
             roles = Role.objects.all()
             
-            role_filter = UserFilter(request.query_params, queryset=roles)
+            role_filter = RoleFilter(request.query_params, queryset=roles)
             filtered_role = role_filter.qs
 
             if 'pag' in request.query_params:
@@ -347,6 +349,9 @@ class CategoryIndexAPIView(APIView):
         try:
             categories = Category.objects.all()
 
+            if request.query_params:
+                category_filter = CategoryFilter(request.query_params, queryset=categories)
+                categories = category_filter.qs
             if 'pag' in request.query_params:
                 pagination = CustomPagination()
                 paginated_categories = pagination.paginate_queryset(categories, request)
@@ -487,6 +492,10 @@ class UnitIndexAPIView(APIView):
     def get(self, request):
         try:
             units = Units.objects.all()
+
+            if request.query_params:
+                unit_filter = UnitFilter(request.query_params, queryset=units)
+                units = unit_filter.qs
 
             if 'pag' in request.query_params:
                 pagination = CustomPagination() 
@@ -630,6 +639,10 @@ class CoinIndexAPIView(APIView):
         try:
             coins = Coin.objects.all()
 
+            if request.query_params:
+                coin_filter = CoinFilter(request.query_params, queryset=coins)
+                coins = coin_filter.qs
+
             if 'pag' in request.query_params:
                 pagination = CustomPagination()
                 paginated_coins = pagination.paginate_queryset(coins, request)
@@ -748,6 +761,144 @@ class CoinRestoreAPIView(APIView):
             coin.deleted_at = None
             coin.save()
             return Response({"message": "Coin restored successfully"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "data": {
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "title": ["Se produjo un error interno"],
+                    "errors": str(e)
+                }
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class ProductIndexAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            products = Product.objects.all()
+
+            if request.query_params:
+                product_filter = ProductFilter(request.query_params, queryset=products)
+                products = product_filter.qs
+                
+            if 'pag' in request.query_params:
+                pagination = CustomPagination()
+                paginated_products = pagination.paginate_queryset(products, request)
+                serializer = ProductSerializer(paginated_products, many=True)
+                return pagination.get_paginated_response({"products": serializer.data})
+            
+            serializer = ProductSerializer(products, many=True)
+            return Response({"products": serializer.data})
+        
+        except Exception as e:
+            return Response({
+                "data": {
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "title": ["Se produjo un error interno"],
+                    "errors": str(e)
+                }
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class ProductStoreAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            serializer = ProductSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                "data": {
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "title": ["Se produjo un error interno"],
+                    "errors": str(e)
+                }
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class ProductShowAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            product = Product.objects.filter(pk=pk).first()
+            if not product:
+                return Response({
+                    "mensaje": "El ID del producto no está registrado."
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = ProductSerializer(product)
+            return Response(serializer.data)
+
+        except Exception as e:
+            return Response({
+                "data": {
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "title": ["Se produjo un error interno"],
+                    "errors": str(e)
+                }
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class ProductUpdateAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        try:
+            product = get_object_or_404(Product, pk=pk)
+        except Product.DoesNotExist:
+            return Response({
+                "data": {
+                    "code": status.HTTP_404_NOT_FOUND,
+                    "title": ["El ID no está registrado"],
+                    "errors": "El ID proporcionado no existe."
+                }
+            }, status=status.HTTP_404_NOT_FOUND)
+            
+        data = request.data
+        
+        for field, value in data.items():
+            if value != 'null' and hasattr(product, field):
+                setattr(product, field, value)
+        
+        product.save()
+        
+        serializer = ProductSerializer(product)
+        return Response(serializer.data)
+    
+class ProductDeleteAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            product = get_object_or_404(Product, pk=pk)
+            product.delete()
+            return Response({"message": "Product deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({
+                "data": {
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "title": ["Se produjo un error interno"],
+                    "errors": str(e)
+                }
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class ProductRestoreAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            product = get_object_or_404(Product, pk=pk, deleted_at__isnull=False)
+            product.deleted_at = None
+            product.save()
+            return Response({"message": "Product restored successfully"}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
                 "data": {

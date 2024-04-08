@@ -1,10 +1,11 @@
 from django.urls import path
 from inventory.api import (UserIndexAPIView, UserStoreAPIView, UserShowAPIView, UserUpdateAPIView, UserDeleteAPIView, UserRestoreAPIView,
                             RoleIndexAPIView, RoleStoreAPIView, RoleShowAPIView, RoleUpdateAPIView, RoleDeleteAPIView, RoleRestoreAPIView, 
-                            UserLogoutAPIView, UserLoginAPIView, UserRegistration, CategoryIndexAPIView, CategoryStoreAPIView,
-                            CategoryShowAPIView, CategoryUpdateAPIView, CategoryDeleteAPIView, CategoryRestoreAPIView, UnitIndexAPIView, 
-                            UnitStoreAPIView, UnitShowAPIView, UnitUpdateAPIView, UnitDeleteAPIView, UnitRestoreAPIView, CoinIndexAPIView, 
-                            CoinStoreAPIView, CoinShowAPIView, CoinUpdateAPIView, CoinDeleteAPIView, CoinRestoreAPIView,
+                            UserLogoutAPIView, UserLoginAPIView, UserRegistration, 
+                            CategoryIndexAPIView, CategoryStoreAPIView, CategoryShowAPIView, CategoryUpdateAPIView, CategoryDeleteAPIView, CategoryRestoreAPIView, 
+                            UnitIndexAPIView, UnitStoreAPIView, UnitShowAPIView, UnitUpdateAPIView, UnitDeleteAPIView, UnitRestoreAPIView, 
+                            CoinIndexAPIView, CoinStoreAPIView, CoinShowAPIView, CoinUpdateAPIView, CoinDeleteAPIView, CoinRestoreAPIView, 
+                            ProductIndexAPIView, ProductStoreAPIView, ProductShowAPIView, ProductUpdateAPIView, ProductDeleteAPIView, ProductRestoreAPIView,
                            )
 urlpatterns = [
     path('login/', UserLoginAPIView.as_view(), name='login'),
@@ -39,7 +40,13 @@ urlpatterns = [
     path('coin/<int:pk>', CoinShowAPIView.as_view(), name='coin-detail'),
     path('coin/update/<int:pk>', CoinUpdateAPIView.as_view(), name='coin-update'),
     path('coin/delete/<int:pk>', CoinDeleteAPIView.as_view(), name='coin-delete'),
-    path('coin/restore/<int:pk>', CoinRestoreAPIView.as_view(), name='unit-restore'),
+    path('coin/restore/<int:pk>', CoinRestoreAPIView.as_view(), name='coin-restore'),
+    path('products', ProductIndexAPIView.as_view(), name='product-index'),
+    path('product/create', ProductStoreAPIView.as_view(), name='product-store'),
+    path('product/<int:pk>', ProductShowAPIView.as_view(), name='product-detail'),
+    path('product/update/<int:pk>', ProductUpdateAPIView.as_view(), name='product-update'),
+    path('product/delete/<int:pk>', ProductDeleteAPIView.as_view(), name='product-delete'),
+    path('product/restore/<int:pk>', ProductRestoreAPIView.as_view(), name='product-restore'),
     
     
 ]

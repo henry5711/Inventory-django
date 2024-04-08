@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password 
-from .models import Role, Category, Units, Coin
+from .models import Role, Category, Units, Coin, Product
 from inventory.models import User
 
 
@@ -25,7 +25,7 @@ class RoleSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     role = RoleSerializer(read_only=True)
-    role_id = serializers.IntegerField(write_only=True)  # Asegúrate de agregar este campo write_only
+    role_id = serializers.IntegerField(write_only=True) 
 
     def validate_password(self, value):
         if len(value) < 8:
@@ -139,3 +139,26 @@ class CoinSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return Coin.objects.create(**validated_data)
+    
+class ProductSerializer(serializers.ModelSerializer):
+    def validate_name(self, value):
+        if Product.objects.filter(name=value).exists():
+            raise serializers.ValidationError("Ya existe un producto con este nombre.")
+        return value
+
+    def create(self, validated_data):
+        return Product.objects.create(**validated_data)
+
+    class Meta:
+        model = Product
+        fields = ['id', 
+                  'name', 
+                  'description', 
+                  'price', 
+                  'units', 
+                  'category', 
+                  'img', 
+                  'created_at',
+                  'updated_at',
+                  'deleted_at',  
+                  ]
