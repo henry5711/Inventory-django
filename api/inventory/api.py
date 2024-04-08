@@ -4,13 +4,14 @@ from rest_framework import status
 from .models import Role, Category, Units, Coin, Product
 from inventory.models import User
 from .serializer import (UserSerializer, RoleSerializer, CategorySerializer, UnitSerializer, 
-                         CoinSerializer, ProductSerializer)
+                         CoinSerializer, ProductSerializer, UserRegisterSerializer)
 from django.shortcuts import get_object_or_404
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework.pagination import PageNumberPagination
 from .filters import (UserFilter, RoleFilter, CategoryFilter, UnitFilter, CoinFilter, 
                       ProductFilter)
 from django.contrib.auth import authenticate, login, logout
+
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
 
@@ -37,12 +38,16 @@ class UserLogoutAPIView(APIView):
         else:
             return Response({'error': 'No hay ninguna sesión activa'}, status=status.HTTP_400_BAD_REQUEST)
 
+
 class UserRegistration(APIView):
     def post(self, request):
-        serializer = UserSerializer(data=request.data)
+        data = request.data.copy()
+        data['role_id'] = 3  
+
+        serializer = UserRegisterSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({"message": "¡Has sido registrado exitosamente!"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class CustomPagination(PageNumberPagination):
@@ -87,7 +92,7 @@ class UserStoreAPIView(APIView):
             serializer = UserSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response({"message": "¡Has sido registrado exitosamente!"}, status=status.HTTP_201_CREATED)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
@@ -232,7 +237,7 @@ class RoleStoreAPIView(APIView):
             serializer = RoleSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response({"message": "¡Rol registrado exitosamente!"}, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({
@@ -379,7 +384,7 @@ class CategoryStoreAPIView(APIView):
             serializer = CategorySerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response({"message": "¡Categoría registrada exitosamente!"}, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({
@@ -514,7 +519,7 @@ class UnitIndexAPIView(APIView):
                     "errors": str(e)
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+        
 class UnitStoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
@@ -524,7 +529,7 @@ class UnitStoreAPIView(APIView):
             serializer = UnitSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response({"message": "¡Unidad de medida registrada exitosamente!"}, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({
@@ -670,7 +675,7 @@ class CoinStoreAPIView(APIView):
             serializer = CoinSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response({"message": "¡Moneda registrada exitosamente!"}, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({
@@ -809,7 +814,7 @@ class ProductStoreAPIView(APIView):
             serializer = ProductSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response({"message": "¡Producto registrado exitosamente!"}, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({
@@ -863,7 +868,10 @@ class ProductUpdateAPIView(APIView):
         data = request.data
         
         for field, value in data.items():
-            if value != 'null' and hasattr(product, field):
+            # Si el valor es "null" como una cadena o un valor nulo real, manten el valor existente
+            if value == "null" or value is None:
+                continue
+            if hasattr(product, field):
                 setattr(product, field, value)
         
         product.save()

@@ -141,10 +141,7 @@ class CoinSerializer(serializers.ModelSerializer):
         return Coin.objects.create(**validated_data)
     
 class ProductSerializer(serializers.ModelSerializer):
-    def validate_name(self, value):
-        if Product.objects.filter(name=value).exists():
-            raise serializers.ValidationError("Ya existe un producto con este nombre.")
-        return value
+  
 
     def create(self, validated_data):
         return Product.objects.create(**validated_data)
