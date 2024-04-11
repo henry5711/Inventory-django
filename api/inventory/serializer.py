@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password 
-from .models import Role, Category, Units, Coin, Product
+from .models import Role, Category, Units, Coin, Product, Inventory, Input, Output
 from inventory.models import User
 
 
@@ -130,7 +130,14 @@ class UnitSerializer(serializers.ModelSerializer):
 class CoinSerializer(serializers.ModelSerializer):
     class Meta:
         model = Coin
-        fields = ['id', 'name', 'description', 'symbol', 'abbreviation', 'created_at', 'updated_at', 'deleted_at']
+        fields = ['id', 
+                  'name', 
+                  'description', 
+                  'symbol', 
+                  'abbreviation', 
+                  'created_at', 
+                  'updated_at', 
+                  'deleted_at']
 
     def validate_name(self, value):
         if Coin.objects.filter(name=value).exists():
@@ -141,7 +148,8 @@ class CoinSerializer(serializers.ModelSerializer):
         return Coin.objects.create(**validated_data)
     
 class ProductSerializer(serializers.ModelSerializer):
-  
+    units = UnitSerializer(read_only=True)
+    category = CategorySerializer(read_only=True)
 
     def create(self, validated_data):
         return Product.objects.create(**validated_data)
@@ -159,3 +167,60 @@ class ProductSerializer(serializers.ModelSerializer):
                   'updated_at',
                   'deleted_at',  
                   ]
+
+class InventorySerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
+
+    class Meta:
+        model = Inventory
+        fields = ['id',
+                  'product_id',
+                  'quantity',  
+                  'created_at', 
+                  'updated_at',
+                  'deleted_at',
+                  'product']
+
+    def create(self, validated_data):
+        inventory_instance = Inventory.objects.create(**validated_data)
+        input_data = {
+            'inventory_id': inventory_instance.id,
+            'quantity': inventory_instance.quantity
+        }
+        input_instance = Input.objects.create(**input_data)
+
+        return inventory_instance
+
+
+class InputSerializer(serializers.ModelSerializer):
+    inventory = InventorySerializer(read_only=True)
+    class Meta:
+        model = Input
+        fields = ['id',
+                  'inventory_id', 
+                  'quantity',  
+                  'created_at', 
+                  'updated_at',
+                  'deleted_at',
+                  'inventory']
+
+    def create(self, validated_data):
+        return Input.objects.create(**validated_data)
+    
+class OutputSerializer(serializers.ModelSerializer):
+    inventory = InventorySerializer(read_only=True)
+
+    class Meta:
+        model = Output
+        fields = ['id',
+                  'inventory_id', 
+                  'quantity',  
+                  'created_at', 
+                  'updated_at',
+                  'deleted_at',
+                  'inventory']
+
+    def create(self, validated_data):
+        return Output.objects.create(**validated_data)
+
+    

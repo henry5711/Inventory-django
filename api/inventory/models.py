@@ -180,3 +180,69 @@ class Product(models.Model):
     def restore(self, *args, **kwargs):
         self.deleted_at = None
         self.save()
+
+class Inventory(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, null=True, related_name='inventory')
+    quantity = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+    updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
+    deleted_at = models.DateTimeField('Fecha de eliminación', blank=True, null=True)
+
+    class Meta:
+        verbose_name = 'Inventario'
+        verbose_name_plural = 'Inventarios'
+
+    def __str__(self):
+        return f"Inventario de {self.product_id.name}"
+
+    def delete(self, *args, **kwargs):
+        self.deleted_at = timezone.now()
+        self.save()
+
+    def restore(self, *args, **kwargs):
+        self.deleted_at = None
+        self.save()
+
+class Input(models.Model):
+    inventory= models.ForeignKey(Inventory, on_delete=models.PROTECT, related_name='input')
+    quantity = models.PositiveIntegerField()
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+    updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
+    deleted_at = models.DateTimeField('Fecha de eliminación', blank=True, null=True)
+
+    class Meta:
+        verbose_name = 'Entrada'
+        verbose_name_plural = 'Entradas'
+
+    def __str__(self):
+        return f"Input #{self.pk}"
+
+    def delete(self, *args, **kwargs):
+        self.deleted_at = timezone.now()
+        self.save()
+
+    def restore(self, *args, **kwargs):
+        self.deleted_at = None
+        self.save()
+
+class Output(models.Model):
+    inventory = models.ForeignKey(Inventory, on_delete=models.PROTECT, related_name='output')
+    quantity = models.PositiveIntegerField()
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+    updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
+    deleted_at = models.DateTimeField('Fecha de eliminación', blank=True, null=True)
+
+    class Meta:
+        verbose_name = 'Salida'
+        verbose_name_plural = 'Salidas'
+
+    def __str__(self):
+        return f"Output #{self.pk}"
+
+    def delete(self, *args, **kwargs):
+        self.deleted_at = timezone.now()
+        self.save()
+
+    def restore(self, *args, **kwargs):
+        self.deleted_at = None
+        self.save()

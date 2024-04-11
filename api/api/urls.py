@@ -1,6 +1,7 @@
 from django.urls import path
 from inventory.api import *
 urlpatterns = [
+                             
     path('login/', UserLoginAPIView.as_view(), name='login'),
     path('logout/', UserLogoutAPIView.as_view(), name='logout'),
     path('register/', UserRegistration.as_view(), name='user-registration'),
@@ -47,5 +48,11 @@ urlpatterns = [
     path('product/delete/<int:pk>', ProductDeleteAPIView.as_view(), name='product-delete'),
     path('product/restore/<int:pk>', ProductRestoreAPIView.as_view(), name='product-restore'),
     
-    
+    path('inventories', InventoryIndexAPIView.as_view(), name='inventory-index'),
+    path('inventory/add', InventoryAddInputAPIView.as_view(), name='inventory-store'),
+    path('inventory/sub', InventorySubOutputAPIView.as_view(), name='inventory-venta'),
+    path('inventory/<int:pk>', InventoryShowAPIView.as_view(), name='inventory-detail'),
+
+    path('inputs',InputIndexAPIView.as_view(), name='input-index'),
+    path('input/<int:pk>',InputShowAPIView.as_view(), name='input-detail'),
 ]
