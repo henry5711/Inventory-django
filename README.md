@@ -13,10 +13,13 @@
 ##Correr migraciones
 ### código:python manage.py migrate
 #Paso 5:
+##Correr permisos
+### código:python manage.py seeders
+#Paso 6:
 ##Crear superusuario
 ### código: python manage.py createsuperuser
 ##Llenar los campos
-#Paso 6: 
+#Paso 7: 
 ##Activar Servidor 
 ### código: python manage.py runserver
 
