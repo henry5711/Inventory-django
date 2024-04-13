@@ -27,6 +27,13 @@ class UserSerializer(serializers.ModelSerializer):
     role = RoleSerializer(read_only=True)
     role_id = serializers.IntegerField(write_only=True) 
 
+    def validate_role_id(self, value):
+        try:
+            role = Role.objects.get(pk=value) 
+        except Role.DoesNotExist:
+            raise serializers.ValidationError("El ID de rol proporcionado no existe.") 
+        return value
+
     def validate_password(self, value):
         if len(value) < 8:
             raise serializers.ValidationError("La contraseña debe tener al menos 8 caracteres.")
@@ -47,7 +54,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 
                   'username', 
-                  'password', 
+                  'password',
                   'email', 
                   'name', 
                   'last_name', 
@@ -62,6 +69,10 @@ class UserSerializer(serializers.ModelSerializer):
                   'updated_at',
                   'deleted_at',  
                   'role', ]
+        extra_kwargs = {
+            'password': {'write_only': True},  
+        }
+
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -146,13 +157,25 @@ class CoinSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return Coin.objects.create(**validated_data)
-    
+ 
 class ProductSerializer(serializers.ModelSerializer):
-    units = UnitSerializer(read_only=True)
-    category = CategorySerializer(read_only=True)
+
+    category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), write_only=True)
+    units_id = serializers.PrimaryKeyRelatedField(queryset=Units.objects.all(), write_only=True)
 
     def create(self, validated_data):
-        return Product.objects.create(**validated_data)
+        category_id = validated_data.pop('category_id', None)
+        units_id = validated_data.pop('units_id', None)
+
+        product = Product.objects.create(**validated_data)
+
+        if category_id:
+            product.category = category_id
+        if units_id:
+            product.units = units_id
+
+        product.save()
+        return product
 
     class Meta:
         model = Product
@@ -160,8 +183,8 @@ class ProductSerializer(serializers.ModelSerializer):
                   'name', 
                   'description', 
                   'price', 
-                  'units', 
-                  'category', 
+                  'units_id',  
+                  'category_id',  
                   'img', 
                   'created_at',
                   'updated_at',

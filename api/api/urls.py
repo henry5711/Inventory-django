@@ -1,5 +1,7 @@
 from django.urls import path
 from inventory.api import *
+from django.conf import settings
+from django.conf.urls.static import static
 urlpatterns = [
                              
     path('login/', UserLoginAPIView.as_view(), name='login'),
@@ -58,4 +60,4 @@ urlpatterns = [
 
     path('outputs',OutputIndexAPIView.as_view(), name='output-index'),
     path('output/<int:pk>',OutputShowAPIView.as_view(), name='output-show'),
-]
+]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -10,10 +10,12 @@ from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework.pagination import PageNumberPagination
 from .filters import *
 from django.contrib.auth import authenticate, login, logout
-
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
-
+from django.middleware.csrf import get_token
+from django.middleware.csrf import rotate_token
+from django.db.models import F
+from rest_framework.exceptions import ValidationError
 
 
 class UserLoginAPIView(APIView):
@@ -25,10 +27,14 @@ class UserLoginAPIView(APIView):
 
         if user is not None:
             login(request, user)
-            return Response({'message': 'Inicio de sesión exitoso'}, status=status.HTTP_200_OK)
+            rotate_token(request)
+            csrf_token = request.META.get("CSRF_COOKIE")
+            response = Response({'message': 'Inicio de sesión exitoso', 'csrf_token': csrf_token}, status=status.HTTP_200_OK)
+            response.set_cookie('csrftoken', csrf_token)
+            return response
         else:
             return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
-
+        
 class UserLogoutAPIView(APIView):
     def post(self, request):
         if request.user.is_authenticated:
@@ -90,7 +96,7 @@ class UserStoreAPIView(APIView):
         try:
             serializer = UserSerializer(data=request.data)
             if serializer.is_valid():
-                serializer.save()
+                serializer.save()  
                 return Response({"message": "¡Has sido registrado exitosamente!"}, status=status.HTTP_201_CREATED)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -168,7 +174,7 @@ class UserDeleteAPIView(APIView):
         try:
             user = get_object_or_404(User, pk=pk)
             user.delete()
-            return Response({"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+            return Response({"message": "¡Usuario eliminado exitosamente!"}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({
                 "data": {
@@ -187,7 +193,7 @@ class UserRestoreAPIView(APIView):
             user = get_object_or_404(User, pk=pk, deleted_at__isnull=False)
             user.deleted_at = None
             user.save()
-            return Response({"message": "User restored successfully"}, status=status.HTTP_200_OK)
+            return Response({"message": "¡Usuario restaurada exitosamente!"}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
                 "data": {
@@ -316,7 +322,7 @@ class RoleDeleteAPIView(APIView):
         try:
             role = get_object_or_404(Role, pk=pk)
             role.delete()
-            return Response({"message": "Role deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+            return Response({"message": "¡Rol restaurada exitosamente!"}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({
                 "data": {
@@ -335,7 +341,7 @@ class RoleRestoreAPIView(APIView):
             role = get_object_or_404(Role, pk=pk, deleted_at__isnull=False)
             role.deleted_at = None
             role.save()
-            return Response({"message": "Role restored successfully"}, status=status.HTTP_200_OK)
+            return Response({"message": "¡Categoría restaurada exitosamente!"}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
                 "data": {
@@ -460,7 +466,7 @@ class CategoryDeleteAPIView(APIView):
         try:
             category = get_object_or_404(Category, pk=pk)
             category.delete()
-            return Response({"message": "Category deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+            return Response({"message": "¡Categoría eliminada exitosamente!"}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({
                 "data": {
@@ -479,7 +485,7 @@ class CategoryRestoreAPIView(APIView):
             category = get_object_or_404(Category, pk=pk, deleted_at__isnull=False)
             category.deleted_at = None
             category.save()
-            return Response({"message": "Categoría restaurada exitosamente"}, status=status.HTTP_200_OK)
+            return Response({"message": "¡Categoría restaurada exitosamente!"}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
                 "data": {
@@ -606,7 +612,7 @@ class UnitDeleteAPIView(APIView):
         try:
             unit = get_object_or_404(Units, pk=pk)
             unit.delete()
-            return Response({"message": "Unit deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+            return Response({"message": "¡Unidad de medida eliminada exitosamente!"}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({
                 "data": {
@@ -625,7 +631,7 @@ class UnitRestoreAPIView(APIView):
             unit = get_object_or_404(Units, pk=pk, deleted_at__isnull=False)
             unit.deleted_at = None
             unit.save()
-            return Response({"message": "Units restored successfully"}, status=status.HTTP_200_OK)
+            return Response({"message": "¡Unidad de medida restaurada exitosamente!"}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
                 "data": {
@@ -745,7 +751,7 @@ class CoinDeleteAPIView(APIView):
         try:
             coin = get_object_or_404(Coin, pk=pk)
             coin.delete()
-            return Response({"message": "Coin deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+            return Response({"message": "¡Moneda eliminada exitosamente!"}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({
                 "data": {
@@ -764,7 +770,7 @@ class CoinRestoreAPIView(APIView):
             coin = get_object_or_404(Coin, pk=pk, deleted_at__isnull=False)
             coin.deleted_at = None
             coin.save()
-            return Response({"message": "Coin restored successfully"}, status=status.HTTP_200_OK)
+            return Response({"message": "¡Moneda restaurada exitosamente!"}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
                 "data": {
@@ -804,17 +810,48 @@ class ProductIndexAPIView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+
+
 class ProductStoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         try:
-            serializer = ProductSerializer(data=request.data)
+            category_id = request.data.get('category_id')
+            units_id = request.data.get('units_id')
+
+            if not (category_id and units_id):
+                return Response({"error": "Los campos 'category_id' y 'units_id' son obligatorios."}, status=status.HTTP_400_BAD_REQUEST)
+
+            category_exists = Category.objects.filter(pk=category_id).exists()
+
+            units_exists = Units.objects.filter(pk=units_id).exists()
+
+            if not (category_exists or units_exists):
+                raise ValidationError({"error": "Ninguno de los dos ID especificados existen."})
+
+            if not category_exists:
+                raise ValidationError({"error": "La categoría especificada no existe."})
+
+            if not units_exists:
+                raise ValidationError({"error": "Las unidades de medida especificadas no existen."})
+
+            data = {
+                'category_id': category_id,
+                'units_id': units_id,
+                'name': request.data.get('name'),
+                'price': request.data.get('price'),
+                'img': request.data.get('img')
+            }
+
+            serializer = ProductSerializer(data=data)
             if serializer.is_valid():
                 serializer.save()
                 return Response({"message": "¡Producto registrado exitosamente!"}, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({
                 "data": {
@@ -886,7 +923,7 @@ class ProductDeleteAPIView(APIView):
         try:
             product = get_object_or_404(Product, pk=pk)
             product.delete()
-            return Response({"message": "Product deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+            return Response({"message": "¡Producto eliminado exitosamente!"}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({
                 "data": {
@@ -905,7 +942,7 @@ class ProductRestoreAPIView(APIView):
             product = get_object_or_404(Product, pk=pk, deleted_at__isnull=False)
             product.deleted_at = None
             product.save()
-            return Response({"message": "Product restored successfully"}, status=status.HTTP_200_OK)
+            return Response({"message": "¡Producto restaurado exitosamente!"}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
                 "data": {
@@ -954,24 +991,47 @@ class InventoryAddInputAPIView(APIView):
         product_id = request.data.get('product_id')
         quantity = request.data.get('quantity')
 
+        # Validar si el product_id existe
+        if not Product.objects.filter(id=product_id).exists():
+            return Response({"message": "Este producto no existe."}, status=status.HTTP_404_NOT_FOUND)
+
         try:
             inventory = Inventory.objects.get(product_id=product_id)
             inventory.quantity += quantity
             inventory.save()
 
-            Input.objects.create(
-                inventory=inventory,
-                quantity=quantity
-            )
-            return Response({"message": "Inventory updated successfully"}, status=status.HTTP_200_OK)
-        except Inventory.DoesNotExist:
-            inventory = Inventory.objects.create(product_id=product_id, quantity=quantity)
+            if inventory.quantity >= 100:
+                message = f"¡La cantidad del producto {inventory.product.name} ha alcanzado o superado 100 unidades!"
+            else:
+                message = ""
 
             Input.objects.create(
                 inventory=inventory,
                 quantity=quantity
             )
-            return Response({"message": "Product Add successfully"}, status=status.HTTP_201_CREATED)
+            response_data = {"message": "¡El inventario se actualizó exitosamente!", "Cantidad actual": inventory.quantity}
+            if message:
+                response_data["Advertencia"] = message
+
+            return Response(response_data, status=status.HTTP_200_OK)
+        except Inventory.DoesNotExist:
+
+            inventory = Inventory.objects.create(product_id=product_id, quantity=quantity)
+
+            if inventory.quantity >= 100:
+                message = f"¡La cantidad del producto {inventory.product.name} ha alcanzado o superado 100 unidades!"
+            else:
+                message = ""
+
+            Input.objects.create(
+                inventory=inventory,
+                quantity=quantity
+            )
+            response_data = {"message": "¡Producto agregado exitosamente!", "Cantidad actual": inventory.quantity}
+            if message:
+                response_data["Advertencia"] = message
+
+            return Response(response_data, status=status.HTTP_201_CREATED)
 
 class InventorySubOutputAPIView(APIView):
     authentication_classes = [SessionAuthentication]
@@ -986,16 +1046,29 @@ class InventorySubOutputAPIView(APIView):
             if inventory.quantity < quantity:
                 return Response({"message": "La cantidad solicitada es mayor que la cantidad en inventario"}, status=status.HTTP_400_BAD_REQUEST)
 
+            remaining_quantity = inventory.quantity - quantity  
+
             inventory.quantity -= quantity
             inventory.save()
+
+            if remaining_quantity <= 5:
+                message = f"¡La cantidad del producto {inventory.product.name} ha llegado al mínimo de 5!"
+            else:
+                message = ""
 
             Output.objects.create(
                 inventory=inventory,
                 quantity=quantity
             )
-            return Response({"message": "Inventario actualizado correctamente"}, status=status.HTTP_200_OK)
+
+            response_data = {"message": "Inventario actualizado satisfactoriamente!", "cantidad actual": remaining_quantity}
+            if message:
+                response_data["Advertencia:"] = message
+
+            return Response(response_data, status=status.HTTP_200_OK)
         except Inventory.DoesNotExist:
             return Response({"message": f"El producto con ID {product_id} no existe"}, status=status.HTTP_404_NOT_FOUND)
+
 
 class InventoryShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
@@ -1122,8 +1195,17 @@ class OutputShowAPIView(APIView):
                     "mensaje": "El ID de la salida no está registrado."
                 }, status=status.HTTP_404_NOT_FOUND)
 
+            product = output_obj.product
+
+            if product.quantity <= 5:
+                mensaje = f"¡La cantidad del producto '{product.name}' ha llegado al mínimo de 5!"
+            else:
+                mensaje = ""
+
             serializer = OutputSerializer(output_obj)
-            return Response(serializer.data)
+            response_data = serializer.data
+            response_data["mensaje"] = mensaje
+            return Response(response_data)
 
         except Exception as e:
             return Response({
