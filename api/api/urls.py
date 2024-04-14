@@ -3,7 +3,9 @@ from inventory.api import *
 from django.conf import settings
 from django.conf.urls.static import static
 urlpatterns = [
-                             
+
+    path('', WelcomeAPIView.as_view(), name=''),
+
     path('login/', UserLoginAPIView.as_view(), name='login'),
     path('logout/', UserLogoutAPIView.as_view(), name='logout'),
     path('register/', UserRegistration.as_view(), name='user-registration'),

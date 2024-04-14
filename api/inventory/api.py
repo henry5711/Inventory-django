@@ -16,7 +16,22 @@ from django.middleware.csrf import get_token
 from django.middleware.csrf import rotate_token
 from django.db.models import F
 from rest_framework.exceptions import ValidationError
+from django.urls import reverse
+from django.shortcuts import redirect
 
+class WelcomeAPIView(APIView):
+    def get(self, request):
+        if request.user.is_authenticated:
+
+            return redirect('inventory-index')
+        
+        welcome_message = "¡Bienvenido! Por favor, inicia sesión o regístrate."
+        
+        login_url = reverse('login')
+        
+        welcome_message += f" Haz click aquí {login_url} para iniciar sesión."
+
+        return Response(welcome_message)
 
 class UserLoginAPIView(APIView):
     def post(self, request):
