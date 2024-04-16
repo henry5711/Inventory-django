@@ -19,6 +19,8 @@ SESSION_COOKIE_AGE = 3600
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True 
 
+PRODUCT_IMAGE_BASE_URL = os.environ.get('PRODUCT_IMAGE_BASE_URL', 'http://127.0.0.1:8000')
+
 CSRF_COOKIE_SECURE = False 
 
 # Application definition

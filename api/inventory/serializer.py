@@ -2,8 +2,8 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import make_password 
 from .models import Role, Category, Units, Coin, Product, Inventory, Input, Output
 from inventory.models import User
-
-
+import os
+  
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
@@ -158,6 +158,8 @@ class CoinSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return Coin.objects.create(**validated_data)
  
+IMAGE_DOMAIN = os.environ.get('IMAGE_DOMAIN', 'https://dominio-por-defecto.com')
+
 class ProductSerializer(serializers.ModelSerializer):
 
     category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), write_only=True)
@@ -190,7 +192,7 @@ class ProductSerializer(serializers.ModelSerializer):
                   'updated_at',
                   'deleted_at',  
                   ]
-
+        
 class InventorySerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
 
@@ -199,6 +201,8 @@ class InventorySerializer(serializers.ModelSerializer):
         fields = ['id',
                   'product_id',
                   'quantity',  
+                  'inventory',
+                  'min_quantity',
                   'created_at', 
                   'updated_at',
                   'deleted_at',

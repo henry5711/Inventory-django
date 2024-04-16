@@ -18,6 +18,9 @@ from django.db.models import F
 from rest_framework.exceptions import ValidationError
 from django.urls import reverse
 from django.shortcuts import redirect
+from django.templatetags.static import static
+from django.http import Http404
+from django.conf import settings
 
 class WelcomeAPIView(APIView):
     def get(self, request):
@@ -811,10 +814,20 @@ class ProductIndexAPIView(APIView):
                 pagination = CustomPagination()
                 paginated_products = pagination.paginate_queryset(products, request)
                 serializer = ProductSerializer(paginated_products, many=True)
+            else:
+                serializer = ProductSerializer(products, many=True)
+
+            # Agregar la URL base a cada objeto serializado
+            for product_data in serializer.data:
+                image_name = product_data.pop('img', None)  # Remover la clave 'img' si existe
+                if image_name:
+                    image_url = settings.PRODUCT_IMAGE_BASE_URL + str(image_name)
+                    product_data['image_url'] = image_url
+
+            if 'pag' in request.query_params:
                 return pagination.get_paginated_response({"products": serializer.data})
-            
-            serializer = ProductSerializer(products, many=True)
-            return Response({"products": serializer.data})
+            else:
+                return Response({"products": serializer.data})
         
         except Exception as e:
             return Response({
@@ -824,7 +837,6 @@ class ProductIndexAPIView(APIView):
                     "errors": str(e)
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
 
 
 class ProductStoreAPIView(APIView):
@@ -882,23 +894,24 @@ class ProductShowAPIView(APIView):
 
     def get(self, request, pk):
         try:
-            product = Product.objects.filter(pk=pk).first()
-            if not product:
-                return Response({
-                    "mensaje": "El ID del producto no está registrado."
-                }, status=status.HTTP_404_NOT_FOUND)
+            product = Product.objects.get(pk=pk)
+        except Product.DoesNotExist:
+            raise Http404("El producto no existe")
 
-            serializer = ProductSerializer(product)
-            return Response(serializer.data)
+        serializer = ProductSerializer(product)
+        product_data = serializer.data
 
-        except Exception as e:
+        # Obtener la URL de la imagen y agregar la URL base
+        image_name = product_data.pop('img', None)  # Remover la clave 'img' si existe
+        if image_name:
+            image_url = settings.PRODUCT_IMAGE_BASE_URL + str(image_name)
+            product_data['image_url'] = image_url
+            return Response(product_data)
+        else:
             return Response({
-                "data": {
-                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    "title": ["Se produjo un error interno"],
-                    "errors": str(e)
-                }
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                "mensaje": "El campo 'img' no está presente en los datos del producto."
+            }, status=status.HTTP_404_NOT_FOUND)
+
         
 class ProductUpdateAPIView(APIView):
     authentication_classes = [SessionAuthentication]
@@ -1006,47 +1019,80 @@ class InventoryAddInputAPIView(APIView):
         product_id = request.data.get('product_id')
         quantity = request.data.get('quantity')
 
-        # Validar si el product_id existe
         if not Product.objects.filter(id=product_id).exists():
             return Response({"message": "Este producto no existe."}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             inventory = Inventory.objects.get(product_id=product_id)
             inventory.quantity += quantity
+
+            product_price = inventory.product.price
+            inventory.total_price = product_price * inventory.quantity
+
+            if inventory.quantity >= inventory.min_quantity:
+                warning_message = ""
+            else:
+                warning_message = f"¡La cantidad del producto {inventory.product.name} ha alcanzado o superado {inventory.min_quantity} unidades!"
+
             inventory.save()
 
-            if inventory.quantity >= 100:
-                message = f"¡La cantidad del producto {inventory.product.name} ha alcanzado o superado 100 unidades!"
-            else:
-                message = ""
+            Input.objects.create(
+                inventory=inventory,
+                quantity=quantity
+            )
+
+            return Response({"message": "¡El inventario se actualizó exitosamente!", "Cantidad actual": inventory.quantity, }, status=status.HTTP_200_OK)
+        except Inventory.DoesNotExist:
+            product = Product.objects.get(id=product_id)
+            inventory = Inventory.objects.create(product=product, quantity=quantity, min_quantity=5)
+
+            product_price = inventory.product.price
+            inventory.total_price = product_price * inventory.quantity
+
+            inventory.save()
 
             Input.objects.create(
                 inventory=inventory,
                 quantity=quantity
             )
-            response_data = {"message": "¡El inventario se actualizó exitosamente!", "Cantidad actual": inventory.quantity}
-            if message:
-                response_data["Advertencia"] = message
 
-            return Response(response_data, status=status.HTTP_200_OK)
+            return Response({"message": f"¡Producto agregado exitosamente! Cantidad mínima establecida por default es 5, actualizala.", "Cantidad actual": inventory.quantity, "Precio total": inventory.total_price}, status=status.HTTP_201_CREATED)
+
+class InventoryAddMinQuantityInputAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        product_id = request.data.get('product_id')
+        min_quantity = request.data.get('min_quantity')
+
+        try:
+            inventory = Inventory.objects.get(product_id=product_id)
+            inventory.min_quantity = min_quantity
+            inventory.save()
+
+            return Response({"message": f"¡Se ha actualizado el min_quantity del inventario del producto con ID {product_id} exitosamente!", "Nuevo min_quantity": inventory.min_quantity}, status=status.HTTP_200_OK)
         except Inventory.DoesNotExist:
 
-            inventory = Inventory.objects.create(product_id=product_id, quantity=quantity)
+            inventory = Inventory.objects.create(product_id=product_id, quantity=0, min_quantity=min_quantity)
+            return Response({"message": f"¡Se ha creado un nuevo inventario para el producto con ID {product_id}!", "Nuevo min_quantity": inventory.min_quantity}, status=status.HTTP_201_CREATED)
+        
+class InventoryUpdateMinQuantityAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
 
-            if inventory.quantity >= 100:
-                message = f"¡La cantidad del producto {inventory.product.name} ha alcanzado o superado 100 unidades!"
-            else:
-                message = ""
+    def put(self, request, inventory_id):
+        min_quantity = request.data.get('min_quantity')
 
-            Input.objects.create(
-                inventory=inventory,
-                quantity=quantity
-            )
-            response_data = {"message": "¡Producto agregado exitosamente!", "Cantidad actual": inventory.quantity}
-            if message:
-                response_data["Advertencia"] = message
+        try:
+            inventory = Inventory.objects.get(id=inventory_id)
 
-            return Response(response_data, status=status.HTTP_201_CREATED)
+            inventory.min_quantity = min_quantity
+            inventory.save()
+
+            return Response({"message": f"¡Se ha actualizado el min_quantity del inventario con ID {inventory_id} exitosamente!", "Nuevo min_quantity": inventory.min_quantity}, status=status.HTTP_200_OK)
+        except Inventory.DoesNotExist:
+            return Response({"message": f"El inventario con ID {inventory_id} no existe"}, status=status.HTTP_404_NOT_FOUND)
 
 class InventorySubOutputAPIView(APIView):
     authentication_classes = [SessionAuthentication]
@@ -1059,32 +1105,31 @@ class InventorySubOutputAPIView(APIView):
         try:
             inventory = Inventory.objects.get(product_id=product_id)
             if inventory.quantity < quantity:
-                return Response({"message": "La cantidad solicitada es mayor que la cantidad en inventario"}, status=status.HTTP_400_BAD_REQUEST)
-
-            remaining_quantity = inventory.quantity - quantity  
+                return Response({"message": "La cantidad solicitada es mayor que la cantidad en inventario", "cantidad existente": inventory.quantity}, status=status.HTTP_400_BAD_REQUEST)
 
             inventory.quantity -= quantity
-            inventory.save()
 
-            if remaining_quantity <= 5:
-                message = f"¡La cantidad del producto {inventory.product.name} ha llegado al mínimo de 5!"
-            else:
-                message = ""
+            inventory.total_price = inventory.product.price * inventory.quantity
 
+            inventory.save()  
             Output.objects.create(
                 inventory=inventory,
                 quantity=quantity
             )
 
-            response_data = {"message": "Inventario actualizado satisfactoriamente!", "cantidad actual": remaining_quantity}
-            if message:
-                response_data["Advertencia:"] = message
+            if inventory.quantity <= inventory.min_quantity:
+                warning_message = f"¡La cantidad del producto {inventory.product.name} ha llegado al mínimo de {inventory.min_quantity}!"
+            else:
+                warning_message = ""
+
+            response_data = {"message": "Inventario actualizado satisfactoriamente!", "cantidad actual": inventory.quantity}
+            if warning_message:
+                response_data["Advertencia"] = warning_message
 
             return Response(response_data, status=status.HTTP_200_OK)
         except Inventory.DoesNotExist:
             return Response({"message": f"El producto con ID {product_id} no existe"}, status=status.HTTP_404_NOT_FOUND)
-
-
+        
 class InventoryShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
@@ -1199,28 +1244,17 @@ class OutputIndexAPIView(APIView):
 
 
 class OutputShowAPIView(APIView):
-    authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
         try:
-            output_obj = Output.objects.filter(pk=pk).first()
-            if not output_obj:
+            Output_obj = Output.objects.filter(pk=pk).first()
+            if not Output_obj:
                 return Response({
                     "mensaje": "El ID de la salida no está registrado."
                 }, status=status.HTTP_404_NOT_FOUND)
 
-            product = output_obj.product
-
-            if product.quantity <= 5:
-                mensaje = f"¡La cantidad del producto '{product.name}' ha llegado al mínimo de 5!"
-            else:
-                mensaje = ""
-
-            serializer = OutputSerializer(output_obj)
-            response_data = serializer.data
-            response_data["mensaje"] = mensaje
-            return Response(response_data)
+            serializer = OutputSerializer(Output_obj)
+            return Response(serializer.data)
 
         except Exception as e:
             return Response({
