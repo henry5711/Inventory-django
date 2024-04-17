@@ -900,8 +900,7 @@ class ProductShowAPIView(APIView):
         serializer = ProductSerializer(product)
         product_data = serializer.data
 
-        # Obtener la URL de la imagen y agregar la URL base
-        image_name = product_data.pop('img', None)  # Remover la clave 'img' si existe
+        image_name = product_data.pop('img', None) 
         if image_name:
             image_url = settings.PRODUCT_IMAGE_BASE_URL + str(image_name)
             product_data['image_url'] = image_url
@@ -1002,9 +1001,9 @@ class InventoryIndexAPIView(APIView):
             for inventory_data in serializer.data:
                 product_data = inventory_data.get('product')
                 if product_data and 'img' in product_data:
-                    # Construye la URL completa de la imagen del producto
+
                     product_data['image_url'] = settings.PRODUCT_IMAGE_BASE_URL + str(product_data['img'])
-                    # Remueve el campo 'img' del producto
+
                     product_data.pop('img')
 
             if 'pag' in request.query_params:
