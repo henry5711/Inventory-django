@@ -57,6 +57,8 @@ urlpatterns = [
     path('inventory/sub', InventorySubOutputAPIView.as_view(), name='inventory-subtraction'),
     path('inventory/<int:pk>', InventoryShowAPIView.as_view(), name='inventory-show'),
 
+    path('inventory', InventoryAddMinQuantityInputAPIView.as_view(), name='inventory-add'),
+
     path('inputs',InputIndexAPIView.as_view(), name='input-index'),
     path('input/<int:pk>',InputShowAPIView.as_view(), name='input-show'),
 

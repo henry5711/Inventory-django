@@ -569,7 +569,7 @@ class UnitShowAPIView(APIView):
 
     def get(self, request, pk):
         try:
-            # Verifica si la unidad existe
+
             unit = Units.objects.filter(pk=pk).first()
             if not unit:
                 return Response({
@@ -817,9 +817,8 @@ class ProductIndexAPIView(APIView):
             else:
                 serializer = ProductSerializer(products, many=True)
 
-            # Agregar la URL base a cada objeto serializado
             for product_data in serializer.data:
-                image_name = product_data.pop('img', None)  # Remover la clave 'img' si existe
+                image_name = product_data.pop('img', None)  
                 if image_name:
                     image_url = settings.PRODUCT_IMAGE_BASE_URL + str(image_name)
                     product_data['image_url'] = image_url
