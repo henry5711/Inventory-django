@@ -986,20 +986,31 @@ class InventoryIndexAPIView(APIView):
 
     def get(self, request):
         try:
-            inventories = Inventory.objects.all() 
+            inventories = Inventory.objects.all()
 
             if request.query_params:
                 inventory_filter = InventoryFilter(request.query_params, queryset=inventories)
                 inventories = inventory_filter.qs
                 
             if 'pag' in request.query_params:
-                pagination = CustomPagination()  
+                pagination = CustomPagination()
                 paginated_inventories = pagination.paginate_queryset(inventories, request)
                 serializer = InventorySerializer(paginated_inventories, many=True)
+            else:
+                serializer = InventorySerializer(inventories, many=True)
+
+            for inventory_data in serializer.data:
+                product_data = inventory_data.get('product')
+                if product_data and 'img' in product_data:
+                    # Construye la URL completa de la imagen del producto
+                    product_data['image_url'] = settings.PRODUCT_IMAGE_BASE_URL + str(product_data['img'])
+                    # Remueve el campo 'img' del producto
+                    product_data.pop('img')
+
+            if 'pag' in request.query_params:
                 return pagination.get_paginated_response({"inventories": serializer.data})
-            
-            serializer = InventorySerializer(inventories, many=True)
-            return Response({"inventories": serializer.data})
+            else:
+                return Response({"inventories": serializer.data})
         
         except Exception as e:
             return Response({
