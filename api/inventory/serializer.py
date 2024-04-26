@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password 
-from .models import Role, Category, Units, Coin, Product, Inventory, Input, Output
+from .models import *
 from inventory.models import User
 import os
   
@@ -249,4 +249,37 @@ class OutputSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return Output.objects.create(**validated_data)
 
-    
+        
+class DetailSerializer(serializers.ModelSerializer):
+    inventory = InventorySerializer(read_only=True)
+
+    class Meta:
+        model = Detail
+        fields =  ['id',
+                  'inventory_id', 
+                  'quantity',  
+                  'price_unit',  
+                  'subtotal',  
+                  'created_at', 
+                  'updated_at',
+                  'deleted_at',
+                  'inventory']
+        
+class BillSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    detail = DetailSerializer(read_only=True)
+    user_id = UserSerializer(write_only=True) 
+    detail_id = DetailSerializer(write_only=True) 
+
+    class Meta:
+        model = Bill
+        fields = ['id',
+                  'date', 
+                  'user_id',  
+                  'detail_id',
+                  'total_price',    
+                  'created_at', 
+                  'updated_at',
+                  'deleted_at',
+                  'user',
+                  'detail']

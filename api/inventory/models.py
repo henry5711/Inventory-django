@@ -249,3 +249,49 @@ class Output(models.Model):
     def restore(self, *args, **kwargs):
         self.deleted_at = None
         self.save()
+
+class Detail(models.Model):
+    inventory = models.ForeignKey(Inventory, on_delete=models.PROTECT, related_name='details')
+    quantity = models.PositiveIntegerField()
+    price_unit = models.DecimalField(decimal_places=2, max_digits=10, default=0)
+    subtotal = models.DecimalField(decimal_places=2, max_digits=10, default=0)
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+    updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
+    deleted_at = models.DateTimeField('Fecha de eliminación', blank=True, null=True)
+    class Meta:
+        verbose_name = 'Detalle'
+        verbose_name_plural = 'Detalles'
+
+    def __str__(self):
+        return f"Detail #{self.pk}"
+
+    def delete(self, *args, **kwargs):
+        self.deleted_at = timezone.now()
+        self.save()
+
+    def restore(self, *args, **kwargs):
+        self.deleted_at = None
+        self.save()
+
+class Bill(models.Model):
+    date = models.DateTimeField('Fecha de la factura', auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name='bill')
+    detail = models.ForeignKey(Detail, on_delete=models.PROTECT, null=True, related_name='bill')
+    total_price = models.DecimalField(decimal_places=2, max_digits=10, default=0)
+    created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
+    updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
+    deleted_at = models.DateTimeField('Fecha de eliminación', blank=True, null=True)
+    class Meta:
+        verbose_name = 'Bill'
+        verbose_name_plural = 'Bills'
+
+    def __str__(self):
+        return f"Bill #{self.pk}"
+
+    def delete(self, *args, **kwargs):
+        self.deleted_at = timezone.now()
+        self.save()
+
+    def restore(self, *args, **kwargs):
+        self.deleted_at = None
+        self.save()

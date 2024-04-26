@@ -1,10 +1,10 @@
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
-from .models import Role, Category, Units, Coin, Product, Inventory
+from .models import *
 from inventory.models import User
 from .serializer import *
-from django.shortcuts import render
+from django.http import request
 from django.shortcuts import get_object_or_404
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework.pagination import PageNumberPagination
@@ -21,6 +21,7 @@ from django.shortcuts import redirect
 from django.templatetags.static import static
 from django.http import Http404
 from django.conf import settings
+from datetime import date
 
 class WelcomeAPIView(APIView):
     def get(self, request):
@@ -1103,15 +1104,21 @@ class InventoryUpdateMinQuantityAPIView(APIView):
         except Inventory.DoesNotExist:
             return Response({"message": f"El inventario con ID {inventory_id} no existe"}, status=status.HTTP_404_NOT_FOUND)
 
+
 class InventorySubOutputAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
+
+    
 
     def post(self, request):
         product_id = request.data.get('product_id')
         quantity = request.data.get('quantity')
 
         try:
+
+            current_user = request.user
+
             inventory = Inventory.objects.get(product_id=product_id)
             if inventory.quantity < quantity:
                 return Response({"message": "La cantidad solicitada es mayor que la cantidad en inventario", "cantidad existente": inventory.quantity}, status=status.HTTP_400_BAD_REQUEST)
@@ -1121,10 +1128,26 @@ class InventorySubOutputAPIView(APIView):
             inventory.total_price = inventory.product.price * inventory.quantity
 
             inventory.save()  
+
             Output.objects.create(
                 inventory=inventory,
                 quantity=quantity
             )
+
+            bill_detail = Detail.objects.create(
+                    inventory=inventory,
+                    quantity=quantity,
+                    price_unit=inventory.product.price,
+                    subtotal=inventory.product.price * quantity
+                )
+
+            bill = Bill.objects.create(
+                user=current_user,
+                detail=bill_detail,
+                total_price=bill_detail.subtotal,
+                date=timezone.now()  # Asegurarse de establecer la fecha adecuadamente
+            )
+
 
             if inventory.quantity <= inventory.min_quantity:
                 warning_message = f"¡La cantidad del producto {inventory.product.name} ha llegado al mínimo de {inventory.min_quantity}!"
@@ -1138,7 +1161,7 @@ class InventorySubOutputAPIView(APIView):
             return Response(response_data, status=status.HTTP_200_OK)
         except Inventory.DoesNotExist:
             return Response({"message": f"El producto con ID {product_id} no existe"}, status=status.HTTP_404_NOT_FOUND)
-        
+
 class InventoryShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
@@ -1273,3 +1296,111 @@ class OutputShowAPIView(APIView):
                     "errors": str(e)
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
+class DetailIndexAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            details = Detail.objects.all()
+
+            if request.query_params:
+                Detail_filter = DetailFilter(request.query_params, queryset=details)
+                details = Detail_filter.qs
+
+            if 'pag' in request.query_params:
+                pagination = CustomPagination()
+                paginated_details = pagination.paginate_queryset(details, request)
+                serializer = DetailSerializer(paginated_details, many=True)
+                return pagination.get_paginated_response({"details": serializer.data})
+
+            serializer = DetailSerializer(details, many=True)
+            return Response({"details": serializer.data})
+
+        except Exception as e:
+            return Response({
+                "data": {
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "title": ["Se produjo un error interno"],
+                    "errors": str(e)
+                }
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class DetailShowAPIView(APIView):
+
+    def get(self, request, pk):
+        try:
+            Detail_obj = Detail.objects.filter(pk=pk).first()
+            if not Detail_obj:
+                return Response({
+                    "mensaje": "El ID de la salida no está registrado."
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = DetailSerializer(Detail_obj)
+            return Response(serializer.data)
+
+        except Exception as e:
+            return Response({
+                "data": {
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "title": ["Se produjo un error interno"],
+                    "errors": str(e)
+                }
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class BillIndexAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            bills = Bill.objects.all()
+
+            if request.query_params:
+                bill_filter = BillFilter(request.query_params, queryset=bills)
+                bills = bill_filter.qs
+
+            if 'pag' in request.query_params:
+                pagination = CustomPagination()
+                paginated_bills = pagination.paginate_queryset(bills, request)
+                serializer = BillSerializer(paginated_bills, many=True)
+                return pagination.get_paginated_response({"bills": serializer.data})
+
+            serializer = BillSerializer(bills, many=True)
+            return Response({"bills": serializer.data})
+
+        except Exception as e:
+            return Response({
+                "data": {
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "title": ["Se produjo un error interno"],
+                    "errors": str(e)
+                }
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class BillShowAPIView(APIView):
+
+    def get(self, request, pk):
+        try:
+            Bill_obj = Bill.objects.filter(pk=pk).first()
+            if not Bill_obj:
+                return Response({
+                    "mensaje": "El ID de la salida no está registrado."
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = BillSerializer(Bill_obj)
+            return Response(serializer.data)
+
+        except Exception as e:
+            return Response({
+                "data": {
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "title": ["Se produjo un error interno"],
+                    "errors": str(e)
+                }
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        

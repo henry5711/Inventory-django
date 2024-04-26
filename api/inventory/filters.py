@@ -1,5 +1,5 @@
 import django_filters
-from .models import User, Role, Category, Units, Coin, Product, Inventory, Input, Output
+from .models import *
 
 class UserFilter(django_filters.FilterSet):
     username = django_filters.CharFilter(lookup_expr='icontains')
@@ -200,3 +200,54 @@ class OutputFilter(django_filters.FilterSet):
         for field_name in self.filters:
             if 'icontains' in self.filters[field_name].lookup_expr:
                 self.filters[field_name].label = f'{self.filters[field_name].label} (similaridad)'
+
+class DetailFilter(django_filters.FilterSet):
+    quantity = django_filters.NumberFilter()
+    price_unit = django_filters.NumberFilter()
+    subtotal = django_filters.NumberFilter()
+    created_at = django_filters.DateFilter(field_name='created_at', lookup_expr='date')
+    updated_at = django_filters.DateFilter(field_name='updated_at', lookup_expr='date')
+
+    class Meta:
+        model = Detail
+        fields = ['id', 
+                'inventory', 
+                'quantity', 
+                'price_unit', 
+                'subtotal', 
+                'created_at', 
+                'updated_at', 
+                'deleted_at']
+
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in self.filters:
+            if 'icontains' in self.filters[field_name].lookup_expr:
+                self.filters[field_name].label = f'{self.filters[field_name].label} (similaridad)'
+
+class BillFilter(django_filters.FilterSet):
+    id = django_filters.NumberFilter()
+    date = django_filters.NumberFilter()
+    total_price = django_filters.NumberFilter()
+    created_at = django_filters.DateFilter(field_name='created_at', lookup_expr='date')
+    updated_at = django_filters.DateFilter(field_name='updated_at', lookup_expr='date')
+
+    class Meta:
+        model = Bill
+        fields = [
+            'id',
+            'date', 
+            'user_id',
+            'detail_id', 
+            'created_at',
+            'updated_at',
+            'deleted_at',
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in self.filters:
+            if 'icontains' in self.filters[field_name].lookup_expr:
+                self.filters[field_name].label = f'{self.filters[field_name].label} (similaridad)'
+

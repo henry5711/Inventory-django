@@ -64,4 +64,10 @@ urlpatterns = [
 
     path('outputs',OutputIndexAPIView.as_view(), name='output-index'),
     path('output/<int:pk>',OutputShowAPIView.as_view(), name='output-show'),
+
+    path('bills',BillIndexAPIView.as_view(), name='bill-index'),
+    path('bill/<int:pk>',BillShowAPIView.as_view(), name='bill-show'),
+
+    path('details',DetailIndexAPIView.as_view(), name='detail-index'),
+    path('detail/<int:pk>',DetailShowAPIView.as_view(), name='detail-show'),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
