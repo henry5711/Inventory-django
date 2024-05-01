@@ -97,7 +97,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        default_role = Role.objects.get(id=4)
+        default_role = Role.objects.get(id=3)
         validated_data['role'] = default_role
         validated_data['username'] = validated_data['username'].lower()
         validated_data['password'] = make_password(validated_data['password']) 
