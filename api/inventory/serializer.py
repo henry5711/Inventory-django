@@ -117,11 +117,10 @@ class UserRegisterClientSerializer(serializers.ModelSerializer):
                   'phone_number', ]
 
     def create(self, validated_data):
-        role_id = 3  # ID del rol que activará la creación de username y password con el documento
+        role_id = 3  
         default_role = Role.objects.get(id=role_id)
         validated_data['role'] = default_role
         
-        # Si el rol es 3, username y password serán el documento
         if default_role.id == role_id:
             validated_data['username'] = validated_data['document']
             validated_data['password'] = make_password(validated_data['document'])

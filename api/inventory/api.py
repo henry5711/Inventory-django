@@ -4,7 +4,6 @@ from rest_framework import status
 from .models import *
 from inventory.models import User
 from .serializer import *
-from django.http import request
 from django.shortcuts import get_object_or_404
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework.pagination import PageNumberPagination
@@ -12,13 +11,11 @@ from .filters import *
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication
-from django.middleware.csrf import get_token
 from django.middleware.csrf import rotate_token
 from django.db.models import F
 from rest_framework.exceptions import ValidationError
 from django.urls import reverse
 from django.shortcuts import redirect
-from django.templatetags.static import static
 from django.http import Http404
 from django.conf import settings
 from datetime import date
@@ -63,7 +60,6 @@ class UserLogoutAPIView(APIView):
         else:
             return Response({'error': 'No hay ninguna sesión activa'}, status=status.HTTP_400_BAD_REQUEST)
 
-
 class UserRegistration(APIView):
     def post(self, request):
         data = request.data.copy()
@@ -78,7 +74,6 @@ class UserRegistration(APIView):
 class CustomPagination(PageNumberPagination):
     page_size_query_param = 'pag'
 
-
 class UserIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
@@ -87,19 +82,16 @@ class UserIndexAPIView(APIView):
     def get(self, request):
         try:
             users = User.objects.all()
-
             user_filter = UserFilter(request.query_params, queryset=users)
             filtered_users = user_filter.qs
-
             if 'pag' in request.query_params:
                 pagination = CustomPagination()
                 paginated_users = pagination.paginate_queryset(filtered_users, request)
                 serializer = UserSerializer(paginated_users, many=True)
-                return pagination.get_paginated_response({"users": serializer.data})
-            
+                return pagination.get_paginated_response({"users": serializer.data})     
             serializer = UserSerializer(filtered_users, many=True)
             return Response({"users": serializer.data})
-        
+
         except Exception as e:
             return Response({
                 "data": {
@@ -123,7 +115,6 @@ class UserStoreAPIView(APIView):
                 return Response({"message": "¡Has sido registrado exitosamente!"}, status=status.HTTP_201_CREATED)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
         except Exception as e:
             return Response({
                 "error": "Se produjo un error interno",
@@ -135,16 +126,13 @@ class UserShowAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_user']
 
-
     def get(self, request, pk):
         try:
-
             user = User.objects.filter(pk=pk).first()
             if not user:
                 return Response({
                     "mensaje": "El ID de usuario no está registrado."
                 }, status=status.HTTP_404_NOT_FOUND)
-
             serializer = UserSerializer(user)
             return Response(serializer.data)
 
@@ -163,31 +151,24 @@ class UserUpdateAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['change_user']
 
-
     def put(self, request, pk):
         try:
-
             user = User.objects.filter(pk=pk).first()
             if not user:
                 return Response({
                     "message": "El ID de usuario no está registrado."
                 }, status=status.HTTP_404_NOT_FOUND)
-            
             data = request.data
 
             for field, value in data.items():
                 if field == 'password':
-                    # Validar la contraseña
                     if len(value) < 8:
                         raise serializers.ValidationError("La contraseña debe tener al menos 8 caracteres.")
                     if not any(char.isdigit() for char in value) or not any(char.isalpha() for char in value):
                         raise serializers.ValidationError("La contraseña debe ser alfanumérica.")
-                    # Encriptar la contraseña
                     value = make_password(value)
                 if (value not in ('', 'null') and value is not None) and hasattr(user, field):
                      setattr(user, field, value)
-            
-
             user.save()
             
             serializer = UserSerializer(user)
@@ -200,13 +181,11 @@ class UserUpdateAPIView(APIView):
                     "errors": str(e)
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
         
 class UserDeleteAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['delete_user']
-
 
     def delete(self, request, pk):
         try:
@@ -227,13 +206,12 @@ class UserRestoreAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['delete_user']
 
-
     def get(self, request, pk):
         try:
             user = get_object_or_404(User, pk=pk, deleted_at__isnull=False)
             user.deleted_at = None
             user.save()
-            return Response({"message": "¡Usuario restaurada exitosamente!"}, status=status.HTTP_200_OK)
+            return Response({"message": "¡Usuario restaurado exitosamente!"}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
                 "data": {
@@ -243,17 +221,14 @@ class UserRestoreAPIView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class RoleIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_role']
 
-
     def get(self, request):
         try:
             roles = Role.objects.all()
-            
             role_filter = RoleFilter(request.query_params, queryset=roles)
             filtered_role = role_filter.qs
 
@@ -262,7 +237,6 @@ class RoleIndexAPIView(APIView):
                 paginated_roles = pagination.paginate_queryset(filtered_role, request)
                 serializer = RoleSerializer(paginated_roles, many=True)
                 return pagination.get_paginated_response({"roles": serializer.data})
-            
             serializer = RoleSerializer(filtered_role, many=True)
             return Response({"roles": serializer.data})
         
@@ -280,7 +254,6 @@ class RoleStoreAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['add_role']
 
-
     def post(self, request):
         try:
             serializer = RoleSerializer(data=request.data)
@@ -297,23 +270,18 @@ class RoleStoreAPIView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class RoleShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_role']
 
-
     def get(self, request, pk):
         try:
-
             role = Role.objects.filter(pk=pk).first()
             if not role:
                 return Response({
                     "mensaje": "El ID del rol no está registrado."
                 }, status=status.HTTP_404_NOT_FOUND)
-
-
             serializer = RoleSerializer(role)
             return Response(serializer.data)
 
@@ -326,12 +294,10 @@ class RoleShowAPIView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class RoleUpdateAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['change_role']
-
 
     def put(self, request, pk):
         try:
@@ -341,7 +307,6 @@ class RoleUpdateAPIView(APIView):
             for field, value in data.items():
                 if value != 'null' and hasattr(role, field):
                     setattr(role, field, value)
-            
             role.save()
             
             serializer = RoleSerializer(role)
@@ -367,7 +332,6 @@ class RoleDeleteAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['delete_role']
 
-
     def delete(self, request, pk):
         try:
             role = get_object_or_404(Role, pk=pk)
@@ -386,7 +350,6 @@ class RoleRestoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['delete_role']
-
 
     def get(self, request, pk):
         try:
@@ -407,7 +370,6 @@ class CategoryIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = 'view_category'
-
 
     def get(self, request):
         try:
@@ -439,7 +401,6 @@ class CategoryStoreAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = 'add_category'
 
-
     def post(self, request):
         try:
             serializer = CategorySerializer(data=request.data)
@@ -456,12 +417,10 @@ class CategoryStoreAPIView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class CategoryShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = 'view_category'
-
 
     def get(self, request, pk):
         try:
@@ -471,8 +430,6 @@ class CategoryShowAPIView(APIView):
                 return Response({
                     "mensaje": "El ID de la categoría no está registrado."
                 }, status=status.HTTP_404_NOT_FOUND)
-
-
             serializer = CategorySerializer(category)
             return Response(serializer.data)
 
@@ -490,7 +447,6 @@ class CategoryUpdateAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = 'change_category'
 
-
     def put(self, request, pk):
         try:
 
@@ -498,15 +454,14 @@ class CategoryUpdateAPIView(APIView):
                 category = Category.objects.get(pk=pk)
             except Category.DoesNotExist:
                 return Response({"message": "El ID de categoría no está registrado"}, status=status.HTTP_404_NOT_FOUND)
-            
             data = request.data
             
             for field, value in data.items():
                 if (value not in ('', 'null') and value is not None) and hasattr(category, field):
                      setattr(category, field, value)
-            
+
             category.save()
-            
+
             serializer = CategorySerializer(category)
             return Response(serializer.data)
         except Exception as e:
@@ -522,7 +477,6 @@ class CategoryDeleteAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = 'delete_category'
-
 
     def delete(self, request, pk):
         try:
@@ -543,7 +497,6 @@ class CategoryRestoreAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = 'delete_category'
 
-
     def get(self, request, pk):
         try:
             category = get_object_or_404(Category, pk=pk, deleted_at__isnull=False)
@@ -563,7 +516,6 @@ class UnitIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_units']
-
 
     def get(self, request):
         try:
@@ -596,7 +548,6 @@ class UnitStoreAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['add_units']
 
-
     def post(self, request):
         try:
             serializer = UnitSerializer(data=request.data)
@@ -618,16 +569,13 @@ class UnitShowAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_units']
 
-
     def get(self, request, pk):
         try:
-
             unit = Units.objects.filter(pk=pk).first()
             if not unit:
                 return Response({
                     "mensaje": "El ID de la unidad no está registrado."
                 }, status=status.HTTP_404_NOT_FOUND)
-
 
             serializer = UnitSerializer(unit)
             return Response(serializer.data)
@@ -681,7 +629,6 @@ class UnitDeleteAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['delete_units']
 
-
     def delete(self, request, pk):
         try:
             unit = get_object_or_404(Units, pk=pk)
@@ -700,7 +647,6 @@ class UnitRestoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['delete_units']
-
 
     def get(self, request, pk):
         try:
@@ -721,7 +667,6 @@ class CoinIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_coin']
-
 
     def get(self, request):
         try:
@@ -754,7 +699,6 @@ class CoinStoreAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['add_coin']
 
-
     def post(self, request):
         try:
             serializer = CoinSerializer(data=request.data)
@@ -776,7 +720,6 @@ class CoinShowAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_coin']
 
-
     def get(self, request, pk):
         try:
             coin = Coin.objects.filter(pk=pk).first()
@@ -784,7 +727,6 @@ class CoinShowAPIView(APIView):
                 return Response({
                     "mensaje": "El ID de la moneda no está registrado."
                 }, status=status.HTTP_404_NOT_FOUND)
-
 
             serializer = CoinSerializer(coin)
             return Response(serializer.data)
@@ -803,7 +745,6 @@ class CoinUpdateAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['change_coin']
 
-
     def put(self, request, pk):
         try:
             coin = get_object_or_404(Coin, pk=pk)
@@ -821,7 +762,6 @@ class CoinUpdateAPIView(APIView):
         for field, value in data.items():
             if (value not in ('', 'null') and value is not None) and hasattr(coin, field):
                      setattr(coin, field, value)
-        
         coin.save()
         
         serializer = CoinSerializer(coin)
@@ -831,7 +771,6 @@ class CoinDeleteAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['delete_coin']
-
 
     def delete(self, request, pk):
         try:
@@ -852,7 +791,6 @@ class CoinRestoreAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['delete_coin']
 
-
     def get(self, request, pk):
         try:
             coin = get_object_or_404(Coin, pk=pk, deleted_at__isnull=False)
@@ -872,7 +810,6 @@ class ProductIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_product']
-
 
     def get(self, request):
         try:
@@ -909,12 +846,10 @@ class ProductIndexAPIView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class ProductStoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['add_product']
-
 
     def post(self, request):
         try:
@@ -969,7 +904,6 @@ class ProductShowAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_product']
 
-
     def get(self, request, pk):
         try:
             product = Product.objects.get(pk=pk)
@@ -989,12 +923,10 @@ class ProductShowAPIView(APIView):
                 "mensaje": "El campo 'img' no está presente en los datos del producto."
             }, status=status.HTTP_404_NOT_FOUND)
 
-        
 class ProductUpdateAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['change_product']
-
 
     def put(self, request, pk):
         try:
@@ -1031,8 +963,8 @@ class ProductUpdateAPIView(APIView):
                 return Response({
                     "data": {
                         "code": status.HTTP_400_BAD_REQUEST,
-                        "title": ["El ID de unidades no existe"],
-                        "errors": "El ID de unidades proporcionado no existe."
+                        "title": ["El ID de unidades de medida no existe"],
+                        "errors": "El ID de unidades de medida proporcionado no existe."
                     }
                 }, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1041,8 +973,6 @@ class ProductUpdateAPIView(APIView):
             if (value not in ('', 'null') and value is not None) and hasattr(product, field):
                      setattr(product, field, value)
 
-                
-        
         product.save()
         
         serializer = ProductSerializer(product)
@@ -1052,7 +982,6 @@ class ProductDeleteAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['delete_product']
-
 
     def delete(self, request, pk):
         try:
@@ -1073,7 +1002,6 @@ class ProductRestoreAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['delete_product']
 
-
     def get(self, request, pk):
         try:
             product = get_object_or_404(Product, pk=pk, deleted_at__isnull=False)
@@ -1089,12 +1017,10 @@ class ProductRestoreAPIView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-
 class InventoryIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_inventory']
-
 
     def get(self, request):
         try:
@@ -1178,7 +1104,6 @@ class InventoryAddInputAPIView(APIView):
                 inventory=inventory,
                 quantity=quantity
             )
-
             return Response({"message": f"¡Producto agregado exitosamente! Cantidad mínima establecida por default es 5, actualizala.", "Cantidad actual": inventory.quantity, "Precio total": inventory.total_price}, status=status.HTTP_201_CREATED)
 
 class InventoryAddMinQuantityInputAPIView(APIView):
@@ -1206,7 +1131,6 @@ class InventoryUpdateMinQuantityAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['change_inventory']
 
-
     def put(self, request, inventory_id):
         min_quantity = request.data.get('min_quantity')
 
@@ -1220,8 +1144,6 @@ class InventoryUpdateMinQuantityAPIView(APIView):
         except Inventory.DoesNotExist:
             return Response({"message": f"El inventario con ID {inventory_id} no existe"}, status=status.HTTP_404_NOT_FOUND)
 
-
-
 class InventorySubOutputAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
@@ -1230,19 +1152,15 @@ class InventorySubOutputAPIView(APIView):
     def post(self, request):
         product_id = request.data.get('product_id')
         quantity = request.data.get('quantity')
-
         try:
-            # Verificar si ya existe un usuario con el documento proporcionado
             document = request.data.get('document')
             existing_user = User.objects.filter(document=document).exists()
 
             if existing_user:
-                # Si el usuario ya existe, obtener la instancia del usuario existente
                 current_user = User.objects.get(document=document)
             else:
-                # Si el usuario no existe, crear uno nuevo
                 user_data = {
-                    "username": document,  # Utiliza el documento como nombre de usuario
+                    "username": document, 
                     "email": request.data.get('email'),
                     "document": document,
                     "address": request.data.get('address'),
@@ -1255,7 +1173,6 @@ class InventorySubOutputAPIView(APIView):
                     current_user = user_serializer.save()
                 else:
                     return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
             inventory = Inventory.objects.get(product_id=product_id)
             if inventory.quantity < quantity:
                 return Response({"message": "La cantidad solicitada es mayor que la cantidad en inventario", "cantidad existente": inventory.quantity}, status=status.HTTP_400_BAD_REQUEST)
@@ -1280,7 +1197,7 @@ class InventorySubOutputAPIView(APIView):
                 user=current_user,
                 detail=bill_detail,
                 total_price=bill_detail.subtotal,
-                date=timezone.now()  # Asegurarse de establecer la fecha adecuadamente
+                date=timezone.now() 
             )
 
             if inventory.quantity <= inventory.min_quantity:
@@ -1296,12 +1213,10 @@ class InventorySubOutputAPIView(APIView):
         except Inventory.DoesNotExist:
             return Response({"message": f"El producto con ID {product_id} no existe"}, status=status.HTTP_404_NOT_FOUND)
 
-
 class InventoryShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_inventory']
-
 
     def get(self, request, pk):
         try:
@@ -1331,7 +1246,6 @@ class InputIndexAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_input']
 
-
     def get(self, request):
         try:
             inputs = Input.objects.all()
@@ -1358,12 +1272,10 @@ class InputIndexAPIView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class InputShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_input']
-
 
     def get(self, request, pk):
         try:
@@ -1389,7 +1301,6 @@ class OutputIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_output']
-
 
     def get(self, request):
         try:
@@ -1417,7 +1328,6 @@ class OutputIndexAPIView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class OutputShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
@@ -1443,12 +1353,10 @@ class OutputShowAPIView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-        
 class DetailIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_detail']
-
 
     def get(self, request):
         try:
@@ -1475,7 +1383,6 @@ class DetailIndexAPIView(APIView):
                     "errors": str(e)
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 class DetailShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
@@ -1506,7 +1413,6 @@ class BillIndexAPIView(APIView):
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_bill']
 
-
     def get(self, request):
         try:
             bills = Bill.objects.all()
@@ -1533,12 +1439,10 @@ class BillIndexAPIView(APIView):
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class BillShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
     required_permissions = ['view_bill']
-
 
     def get(self, request, pk):
         try:

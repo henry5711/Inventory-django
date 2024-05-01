@@ -1,7 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, PermissionsMixin, Permission
 from django.utils import timezone
-import os
 
 class Role(models.Model):
     name = models.CharField(max_length=255)
