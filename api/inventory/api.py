@@ -22,6 +22,7 @@ from django.templatetags.static import static
 from django.http import Http404
 from django.conf import settings
 from datetime import date
+from .permissions import CustomPermission
 
 class WelcomeAPIView(APIView):
     def get(self, request):
@@ -80,7 +81,9 @@ class CustomPagination(PageNumberPagination):
 
 class UserIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_user']
+
     def get(self, request):
         try:
             users = User.objects.all()
@@ -109,8 +112,9 @@ class UserIndexAPIView(APIView):
     
 class UserStoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
-
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['add_user']
+ 
     def post(self, request):
         try:
             serializer = UserSerializer(data=request.data)
@@ -128,7 +132,9 @@ class UserStoreAPIView(APIView):
 
 class UserShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_user']
+
 
     def get(self, request, pk):
         try:
@@ -154,7 +160,9 @@ class UserShowAPIView(APIView):
         
 class UserUpdateAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['change_user']
+
 
     def put(self, request, pk):
         try:
@@ -166,11 +174,20 @@ class UserUpdateAPIView(APIView):
                 }, status=status.HTTP_404_NOT_FOUND)
             
             data = request.data
-            
+
             for field, value in data.items():
-                if value != 'null' and hasattr(user, field):
-                    setattr(user, field, value)
+                if field == 'password':
+                    # Validar la contraseña
+                    if len(value) < 8:
+                        raise serializers.ValidationError("La contraseña debe tener al menos 8 caracteres.")
+                    if not any(char.isdigit() for char in value) or not any(char.isalpha() for char in value):
+                        raise serializers.ValidationError("La contraseña debe ser alfanumérica.")
+                    # Encriptar la contraseña
+                    value = make_password(value)
+                if (value not in ('', 'null') and value is not None) and hasattr(user, field):
+                     setattr(user, field, value)
             
+
             user.save()
             
             serializer = UserSerializer(user)
@@ -187,7 +204,9 @@ class UserUpdateAPIView(APIView):
         
 class UserDeleteAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['delete_user']
+
 
     def delete(self, request, pk):
         try:
@@ -205,7 +224,9 @@ class UserDeleteAPIView(APIView):
 
 class UserRestoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['delete_user']
+
 
     def get(self, request, pk):
         try:
@@ -225,7 +246,9 @@ class UserRestoreAPIView(APIView):
 
 class RoleIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_role']
+
 
     def get(self, request):
         try:
@@ -254,7 +277,9 @@ class RoleIndexAPIView(APIView):
           
 class RoleStoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['add_role']
+
 
     def post(self, request):
         try:
@@ -275,7 +300,9 @@ class RoleStoreAPIView(APIView):
 
 class RoleShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_role']
+
 
     def get(self, request, pk):
         try:
@@ -302,7 +329,9 @@ class RoleShowAPIView(APIView):
 
 class RoleUpdateAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['change_role']
+
 
     def put(self, request, pk):
         try:
@@ -335,13 +364,15 @@ class RoleUpdateAPIView(APIView):
         
 class RoleDeleteAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['delete_role']
+
 
     def delete(self, request, pk):
         try:
             role = get_object_or_404(Role, pk=pk)
             role.delete()
-            return Response({"message": "¡Rol restaurada exitosamente!"}, status=status.HTTP_204_NO_CONTENT)
+            return Response({"message": "¡Rol elminado exitosamente!"}, status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             return Response({
                 "data": {
@@ -353,14 +384,16 @@ class RoleDeleteAPIView(APIView):
 
 class RoleRestoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['delete_role']
+
 
     def get(self, request, pk):
         try:
             role = get_object_or_404(Role, pk=pk, deleted_at__isnull=False)
             role.deleted_at = None
             role.save()
-            return Response({"message": "¡Categoría restaurada exitosamente!"}, status=status.HTTP_200_OK)
+            return Response({"message": "¡Rol restaurado exitosamente!"}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
                 "data": {
@@ -372,7 +405,9 @@ class RoleRestoreAPIView(APIView):
 
 class CategoryIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = 'view_category'
+
 
     def get(self, request):
         try:
@@ -401,7 +436,9 @@ class CategoryIndexAPIView(APIView):
           
 class CategoryStoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = 'add_category'
+
 
     def post(self, request):
         try:
@@ -422,7 +459,9 @@ class CategoryStoreAPIView(APIView):
 
 class CategoryShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = 'view_category'
+
 
     def get(self, request, pk):
         try:
@@ -448,7 +487,9 @@ class CategoryShowAPIView(APIView):
 
 class CategoryUpdateAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = 'change_category'
+
 
     def put(self, request, pk):
         try:
@@ -461,8 +502,8 @@ class CategoryUpdateAPIView(APIView):
             data = request.data
             
             for field, value in data.items():
-                if value != 'null' and hasattr(category, field):
-                    setattr(category, field, value)
+                if (value not in ('', 'null') and value is not None) and hasattr(category, field):
+                     setattr(category, field, value)
             
             category.save()
             
@@ -479,7 +520,9 @@ class CategoryUpdateAPIView(APIView):
         
 class CategoryDeleteAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = 'delete_category'
+
 
     def delete(self, request, pk):
         try:
@@ -497,7 +540,9 @@ class CategoryDeleteAPIView(APIView):
 
 class CategoryRestoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = 'delete_category'
+
 
     def get(self, request, pk):
         try:
@@ -516,7 +561,9 @@ class CategoryRestoreAPIView(APIView):
         
 class UnitIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_units']
+
 
     def get(self, request):
         try:
@@ -546,7 +593,9 @@ class UnitIndexAPIView(APIView):
         
 class UnitStoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['add_units']
+
 
     def post(self, request):
         try:
@@ -566,7 +615,9 @@ class UnitStoreAPIView(APIView):
 
 class UnitShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_units']
+
 
     def get(self, request, pk):
         try:
@@ -592,7 +643,9 @@ class UnitShowAPIView(APIView):
         
 class UnitUpdateAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['change_units']
+
 
     def put(self, request, pk):
         try:
@@ -607,8 +660,8 @@ class UnitUpdateAPIView(APIView):
             data = request.data
             
             for field, value in data.items():
-                if value != 'null' and hasattr(unit, field):
-                    setattr(unit, field, value)
+                if (value not in ('', 'null') and value is not None) and hasattr(unit, field):
+                     setattr(unit, field, value)
             
             unit.save()
             
@@ -625,7 +678,9 @@ class UnitUpdateAPIView(APIView):
         
 class UnitDeleteAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['delete_units']
+
 
     def delete(self, request, pk):
         try:
@@ -643,7 +698,9 @@ class UnitDeleteAPIView(APIView):
         
 class UnitRestoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['delete_units']
+
 
     def get(self, request, pk):
         try:
@@ -662,7 +719,9 @@ class UnitRestoreAPIView(APIView):
 
 class CoinIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_coin']
+
 
     def get(self, request):
         try:
@@ -692,7 +751,9 @@ class CoinIndexAPIView(APIView):
         
 class CoinStoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['add_coin']
+
 
     def post(self, request):
         try:
@@ -712,7 +773,9 @@ class CoinStoreAPIView(APIView):
         
 class CoinShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_coin']
+
 
     def get(self, request, pk):
         try:
@@ -737,7 +800,9 @@ class CoinShowAPIView(APIView):
         
 class CoinUpdateAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['change_coin']
+
 
     def put(self, request, pk):
         try:
@@ -754,8 +819,8 @@ class CoinUpdateAPIView(APIView):
         data = request.data
         
         for field, value in data.items():
-            if value != 'null' and hasattr(coin, field):
-                setattr(coin, field, value)
+            if (value not in ('', 'null') and value is not None) and hasattr(coin, field):
+                     setattr(coin, field, value)
         
         coin.save()
         
@@ -764,7 +829,9 @@ class CoinUpdateAPIView(APIView):
 
 class CoinDeleteAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['delete_coin']
+
 
     def delete(self, request, pk):
         try:
@@ -782,7 +849,9 @@ class CoinDeleteAPIView(APIView):
         
 class CoinRestoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['delete_coin']
+
 
     def get(self, request, pk):
         try:
@@ -801,7 +870,9 @@ class CoinRestoreAPIView(APIView):
         
 class ProductIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_product']
+
 
     def get(self, request):
         try:
@@ -841,7 +912,9 @@ class ProductIndexAPIView(APIView):
 
 class ProductStoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['add_product']
+
 
     def post(self, request):
         try:
@@ -865,11 +938,14 @@ class ProductStoreAPIView(APIView):
                 raise ValidationError({"error": "Las unidades de medida especificadas no existen."})
 
             data = {
+
                 'category_id': category_id,
                 'units_id': units_id,
                 'name': request.data.get('name'),
+                'description': request.data.get('description'),
                 'price': request.data.get('price'),
                 'img': request.data.get('img')
+                
             }
 
             serializer = ProductSerializer(data=data)
@@ -890,7 +966,9 @@ class ProductStoreAPIView(APIView):
         
 class ProductShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_product']
+
 
     def get(self, request, pk):
         try:
@@ -914,7 +992,9 @@ class ProductShowAPIView(APIView):
         
 class ProductUpdateAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['change_product']
+
 
     def put(self, request, pk):
         try:
@@ -930,12 +1010,38 @@ class ProductUpdateAPIView(APIView):
             
         data = request.data
         
+        if 'category_id' in data:
+            category_id = data['category_id']
+            try:
+                category = Category.objects.get(pk=category_id)
+            except Category.DoesNotExist:
+                return Response({
+                    "data": {
+                        "code": status.HTTP_400_BAD_REQUEST,
+                        "title": ["El ID de categoría no existe"],
+                        "errors": "El ID de categoría proporcionado no existe."
+                    }
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if 'units_id' in data:
+            units_id = data['units_id']
+            try:
+                units = Units.objects.get(pk=units_id)
+            except Units.DoesNotExist:
+                return Response({
+                    "data": {
+                        "code": status.HTTP_400_BAD_REQUEST,
+                        "title": ["El ID de unidades no existe"],
+                        "errors": "El ID de unidades proporcionado no existe."
+                    }
+                }, status=status.HTTP_400_BAD_REQUEST)
+
         for field, value in data.items():
            
-            if value == "null" or value is None:
-                continue
-            if hasattr(product, field):
-                setattr(product, field, value)
+            if (value not in ('', 'null') and value is not None) and hasattr(product, field):
+                     setattr(product, field, value)
+
+                
         
         product.save()
         
@@ -944,7 +1050,9 @@ class ProductUpdateAPIView(APIView):
     
 class ProductDeleteAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['delete_product']
+
 
     def delete(self, request, pk):
         try:
@@ -962,7 +1070,9 @@ class ProductDeleteAPIView(APIView):
         
 class ProductRestoreAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['delete_product']
+
 
     def get(self, request, pk):
         try:
@@ -982,7 +1092,9 @@ class ProductRestoreAPIView(APIView):
 
 class InventoryIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_inventory']
+
 
     def get(self, request):
         try:
@@ -1023,7 +1135,8 @@ class InventoryIndexAPIView(APIView):
         
 class InventoryAddInputAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['add_inventory'] 
 
     def post(self, request):
         product_id = request.data.get('product_id')
@@ -1070,7 +1183,8 @@ class InventoryAddInputAPIView(APIView):
 
 class InventoryAddMinQuantityInputAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['add_inventory'] 
 
     def post(self, request):
         product_id = request.data.get('product_id')
@@ -1089,7 +1203,9 @@ class InventoryAddMinQuantityInputAPIView(APIView):
         
 class InventoryUpdateMinQuantityAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['change_inventory']
+
 
     def put(self, request, inventory_id):
         min_quantity = request.data.get('min_quantity')
@@ -1108,7 +1224,8 @@ class InventoryUpdateMinQuantityAPIView(APIView):
 
 class InventorySubOutputAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['add_inventory']  
 
     def post(self, request):
         product_id = request.data.get('product_id')
@@ -1182,7 +1299,9 @@ class InventorySubOutputAPIView(APIView):
 
 class InventoryShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_inventory']
+
 
     def get(self, request, pk):
         try:
@@ -1209,7 +1328,9 @@ class InventoryShowAPIView(APIView):
         
 class InputIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_input']
+
 
     def get(self, request):
         try:
@@ -1240,7 +1361,9 @@ class InputIndexAPIView(APIView):
 
 class InputShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_input']
+
 
     def get(self, request, pk):
         try:
@@ -1264,7 +1387,9 @@ class InputShowAPIView(APIView):
         
 class OutputIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_output']
+
 
     def get(self, request):
         try:
@@ -1294,6 +1419,9 @@ class OutputIndexAPIView(APIView):
 
 
 class OutputShowAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_output']
 
     def get(self, request, pk):
         try:
@@ -1318,7 +1446,9 @@ class OutputShowAPIView(APIView):
         
 class DetailIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_detail']
+
 
     def get(self, request):
         try:
@@ -1348,7 +1478,9 @@ class DetailIndexAPIView(APIView):
 
 
 class DetailShowAPIView(APIView):
-
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_detal']
     def get(self, request, pk):
         try:
             Detail_obj = Detail.objects.filter(pk=pk).first()
@@ -1371,7 +1503,9 @@ class DetailShowAPIView(APIView):
         
 class BillIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_bill']
+
 
     def get(self, request):
         try:
@@ -1401,6 +1535,10 @@ class BillIndexAPIView(APIView):
 
 
 class BillShowAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_bill']
+
 
     def get(self, request, pk):
         try:

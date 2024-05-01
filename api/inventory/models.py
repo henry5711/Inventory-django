@@ -1,11 +1,12 @@
 from django.db import models
-from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, PermissionsMixin
+from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, PermissionsMixin, Permission
 from django.utils import timezone
 import os
 
 class Role(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    permissions = models.ManyToManyField(Permission, through='RolePermission')
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
     deleted_at = models.DateTimeField('Fecha de eliminación', blank=True, null=True)
@@ -46,6 +47,7 @@ class UserManager(BaseUserManager):
         return self._create_user(username, email, name, last_name, password, False, False, **extra_fields)
 
     def create_superuser(self, username, email, name, last_name, password=None, **extra_fields):
+        extra_fields.setdefault('role_id', 1)
         return self._create_user(username, email, name, last_name, password, True, True, **extra_fields)
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -295,3 +297,10 @@ class Bill(models.Model):
     def restore(self, *args, **kwargs):
         self.deleted_at = None
         self.save()
+
+class RolePermission(models.Model):
+    role = models.ForeignKey(Role, on_delete=models.CASCADE)
+    permission = models.ForeignKey(Permission, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('role', 'permission')

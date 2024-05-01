@@ -60,7 +60,6 @@ class UserSerializer(serializers.ModelSerializer):
                   'name', 
                   'last_name', 
                   'role_id',
-                  'image', 
                   'document', 
                   'address',
                   'phone_number',
@@ -189,7 +188,8 @@ class CoinSerializer(serializers.ModelSerializer):
 IMAGE_DOMAIN = os.environ.get('IMAGE_DOMAIN', 'https://dominio-por-defecto.com')
 
 class ProductSerializer(serializers.ModelSerializer):
-
+    category = CategorySerializer(read_only=True)
+    units = UnitSerializer(read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), write_only=True)
     units_id = serializers.PrimaryKeyRelatedField(queryset=Units.objects.all(), write_only=True)
 
@@ -216,6 +216,8 @@ class ProductSerializer(serializers.ModelSerializer):
                   'units_id',  
                   'category_id',  
                   'img', 
+                  'category',  
+                  'units',
                   'created_at',
                   'updated_at',
                   'deleted_at',  
