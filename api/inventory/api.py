@@ -305,8 +305,8 @@ class RoleUpdateAPIView(APIView):
             data = request.data
             
             for field, value in data.items():
-                if value != 'null' and hasattr(role, field):
-                    setattr(role, field, value)
+                if (value not in ('', 'null') and value is not None) and hasattr(role, field):
+                     setattr(role, field, value)
             role.save()
             
             serializer = RoleSerializer(role)
