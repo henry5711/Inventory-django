@@ -20,6 +20,7 @@ from django.http import Http404
 from django.conf import settings
 from datetime import date
 from .permissions import CustomPermission
+from decimal import Decimal
 
 class WelcomeAPIView(APIView):
     def get(self, request):
@@ -1152,8 +1153,7 @@ class InventorySubOutputAPIView(APIView):
     required_permissions = ['add_inventory']  
 
     def post(self, request):
-        product_id = request.data.get('product_id')
-        quantity = request.data.get('quantity')
+        products = request.data.get('products', [])
         try:
             document = request.data.get('document')
             existing_user = User.objects.filter(document=document).exists()
@@ -1175,45 +1175,66 @@ class InventorySubOutputAPIView(APIView):
                     current_user = user_serializer.save()
                 else:
                     return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            inventory = Inventory.objects.get(product_id=product_id)
-            if inventory.quantity < quantity:
-                return Response({"message": "La cantidad solicitada es mayor que la cantidad en inventario", "cantidad existente": inventory.quantity}, status=status.HTTP_400_BAD_REQUEST)
+                
+            bill_details = []
+            total_price = Decimal(0)
+            
+            for product in products:
+                product_id = product.get('product_id')
+                quantity = product.get('quantity')
 
-            inventory.quantity -= quantity
-            inventory.total_price = inventory.product.price * inventory.quantity
-            inventory.save()  
+                inventory = Inventory.objects.get(product_id=product_id)
+                if inventory.quantity < quantity:
+                    return Response({"message": f"La cantidad solicitada para el producto {inventory.product.name} es mayor que la cantidad en inventario", "cantidad existente": inventory.quantity}, status=status.HTTP_400_BAD_REQUEST)
 
-            Output.objects.create(
-                inventory=inventory,
-                quantity=quantity
-            )
+                inventory.quantity -= quantity
+                inventory.total_price = inventory.product.price * inventory.quantity
+                inventory.save()  
 
-            bill_detail = Detail.objects.create(
-                inventory=inventory,
-                quantity=quantity,
-                price_unit=inventory.product.price,
-                subtotal=inventory.product.price * quantity
-            )
+                Output.objects.create(
+                    inventory=inventory,
+                    quantity=quantity
+                )
+
+                subtotal = inventory.product.price * quantity
+                total_price += subtotal
+
+                bill_detail = {
+                    'inventory': inventory,
+                    'quantity': quantity,
+                    'price_unit': inventory.product.price,
+                    'subtotal': subtotal,
+                }
+
+                bill_details.append(bill_detail)
+
+                if inventory.quantity <= inventory.min_quantity:
+                    warning_message = f"¡La cantidad del producto {inventory.product.name} ha llegado al mínimo de {inventory.min_quantity}!"
+                else:
+                    warning_message = ""
 
             bill = Bill.objects.create(
                 user=current_user,
-                detail=bill_detail,
-                total_price=bill_detail.subtotal,
+                total_price=total_price,
                 date=timezone.now() 
             )
 
-            if inventory.quantity <= inventory.min_quantity:
-                warning_message = f"¡La cantidad del producto {inventory.product.name} ha llegado al mínimo de {inventory.min_quantity}!"
-            else:
-                warning_message = ""
+            for detail in bill_details:
+                Detail.objects.create(
+                    bill=bill,
+                    inventory=detail['inventory'],
+                    quantity=detail['quantity'],
+                    price_unit=detail['price_unit'],
+                    subtotal=detail['subtotal']
+                )
 
-            response_data = {"message": "Inventario actualizado satisfactoriamente!", "cantidad actual": inventory.quantity}
+            response_data = {"message": "Inventario actualizado satisfactoriamente!", "total_price": total_price}
             if warning_message:
                 response_data["Advertencia"] = warning_message
 
             return Response(response_data, status=status.HTTP_200_OK)
         except Inventory.DoesNotExist:
-            return Response({"message": f"El producto con ID {product_id} no existe en el inventario"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": f"Uno de los productos no existe en el inventario"}, status=status.HTTP_404_NOT_FOUND)
 
 class InventoryShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
@@ -1354,61 +1375,7 @@ class OutputShowAPIView(APIView):
                     "errors": str(e)
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-class DetailIndexAPIView(APIView):
-    authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated, CustomPermission]
-    required_permissions = ['view_detail']
-
-    def get(self, request):
-        try:
-            details = Detail.objects.all()
-
-            if request.query_params:
-                Detail_filter = DetailFilter(request.query_params, queryset=details)
-                details = Detail_filter.qs
-
-            if 'pag' in request.query_params:
-                pagination = CustomPagination()
-                paginated_details = pagination.paginate_queryset(details, request)
-                serializer = DetailSerializer(paginated_details, many=True)
-                return pagination.get_paginated_response({"details": serializer.data})
-
-            serializer = DetailSerializer(details, many=True)
-            return Response({"details": serializer.data})
-
-        except Exception as e:
-            return Response({
-                "data": {
-                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    "title": ["Se produjo un error interno"],
-                    "errors": str(e)
-                }
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-class DetailShowAPIView(APIView):
-    authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated, CustomPermission]
-    required_permissions = ['view_detail']
-    def get(self, request, pk):
-        try:
-            Detail_obj = Detail.objects.filter(pk=pk).first()
-            if not Detail_obj:
-                return Response({
-                    "mensaje": "El ID de la salida no está registrado."
-                }, status=status.HTTP_404_NOT_FOUND)
-
-            serializer = DetailSerializer(Detail_obj)
-            return Response(serializer.data)
-
-        except Exception as e:
-            return Response({
-                "data": {
-                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    "title": ["Se produjo un error interno"],
-                    "errors": str(e)
-                }
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+       
         
 class BillIndexAPIView(APIView):
     authentication_classes = [SessionAuthentication]
@@ -1465,4 +1432,58 @@ class BillShowAPIView(APIView):
                     "errors": str(e)
                 }
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+     
+class DetailIndexAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_detail']
+
+    def get(self, request):
+        try:
+            details = Detail.objects.all()
+
+            if request.query_params:
+                Detail_filter = DetailFilter(request.query_params, queryset=details)
+                details = Detail_filter.qs
+
+            if 'pag' in request.query_params:
+                pagination = CustomPagination()
+                paginated_details = pagination.paginate_queryset(details, request)
+                serializer = DetailSerializer(paginated_details, many=True)
+                return pagination.get_paginated_response({"details": serializer.data})
+
+            serializer = DetailSerializer(details, many=True)
+            return Response({"details": serializer.data})
+
+        except Exception as e:
+            return Response({
+                "data": {
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "title": ["Se produjo un error interno"],
+                    "errors": str(e)
+                }
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class DetailShowAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated, CustomPermission]
+    required_permissions = ['view_detail']
+    def get(self, request, pk):
+        try:
+            Detail_obj = Detail.objects.filter(pk=pk).first()
+            if not Detail_obj:
+                return Response({
+                    "mensaje": "El ID de la salida no está registrado."
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = DetailSerializer(Detail_obj)
+            return Response(serializer.data)
+
+        except Exception as e:
+            return Response({
+                "data": {
+                    "code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "title": ["Se produjo un error interno"],
+                    "errors": str(e)
+                }
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

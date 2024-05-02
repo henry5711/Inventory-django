@@ -259,11 +259,13 @@ class Detail(models.Model):
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
     deleted_at = models.DateTimeField('Fecha de eliminación', blank=True, null=True)
+    bill = models.ForeignKey('Bill', on_delete=models.PROTECT, null=True, related_name='details') 
+
     class Meta:
         verbose_name = 'Detalle'
         verbose_name_plural = 'Detalles'
 
-    def __str__(self):
+    def _str_(self):
         return f"Detail #{self.pk}"
 
     def delete(self, *args, **kwargs):
@@ -276,17 +278,17 @@ class Detail(models.Model):
 
 class Bill(models.Model):
     date = models.DateTimeField('Fecha de la factura', auto_now_add=True)
-    user = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name='bill')
-    detail = models.ForeignKey(Detail, on_delete=models.PROTECT, null=True, related_name='bill')
+    user = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name='bills')  
     total_price = models.DecimalField(decimal_places=2, max_digits=10, default=0)
     created_at = models.DateTimeField('Fecha de creación', auto_now_add=True)
     updated_at = models.DateTimeField('Fecha de actualización', auto_now=True)
     deleted_at = models.DateTimeField('Fecha de eliminación', blank=True, null=True)
+
     class Meta:
         verbose_name = 'Bill'
         verbose_name_plural = 'Bills'
 
-    def __str__(self):
+    def _str_(self):
         return f"Bill #{self.pk}"
 
     def delete(self, *args, **kwargs):
