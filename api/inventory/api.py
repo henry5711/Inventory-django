@@ -1385,7 +1385,7 @@ class BillIndexAPIView(APIView):
     def get(self, request):
         try:
             bills = Bill.objects.all()
-
+            
             if request.query_params:
                 bill_filter = BillFilter(request.query_params, queryset=bills)
                 bills = bill_filter.qs
@@ -1393,10 +1393,10 @@ class BillIndexAPIView(APIView):
             if 'pag' in request.query_params:
                 pagination = CustomPagination()
                 paginated_bills = pagination.paginate_queryset(bills, request)
-                serializer = BillSerializer(paginated_bills, many=True)
+                serializer = BillIndexSerializer(paginated_bills, many=True)
                 return pagination.get_paginated_response({"bills": serializer.data})
 
-            serializer = BillSerializer(bills, many=True)
+            serializer = BillIndexSerializer(bills, many=True)
             return Response({"bills": serializer.data})
 
         except Exception as e:

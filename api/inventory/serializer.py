@@ -316,3 +316,20 @@ class DetailSerializer(serializers.ModelSerializer):
                   'inventory',
                   'bill']
         
+class BillIndexSerializer(serializers.ModelSerializer):
+    details = DetailSerializer(many=True, read_only=True)
+    user = UserSerializer(read_only=True)
+    user_id = UserSerializer(write_only=True) 
+
+    class Meta:
+        model = Bill
+        fields = ['id',
+                  'date', 
+                  'user_id',  
+                  'total_price',    
+                  'created_at', 
+                  'updated_at',
+                  'deleted_at',
+                  'user',
+                  'details'
+                ]
