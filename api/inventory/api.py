@@ -161,12 +161,14 @@ class UserUpdateAPIView(APIView):
             data = request.data
 
             for field, value in data.items():
-                if field == 'password':
+                if field == 'password' and value:
                     if len(value) < 8:
                         raise serializers.ValidationError("La contraseña debe tener al menos 8 caracteres.")
                     if not any(char.isdigit() for char in value) or not any(char.isalpha() for char in value):
                         raise serializers.ValidationError("La contraseña debe ser alfanumérica.")
                     value = make_password(value)
+                if field == 'username' and value:
+                    value = value.lower()
                 if (value not in ('', 'null') and value is not None) and hasattr(user, field):
                      setattr(user, field, value)
             user.save()
@@ -1211,7 +1213,7 @@ class InventorySubOutputAPIView(APIView):
 
             return Response(response_data, status=status.HTTP_200_OK)
         except Inventory.DoesNotExist:
-            return Response({"message": f"El producto con ID {product_id} no existe"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": f"El producto con ID {product_id} no existe en el inventario"}, status=status.HTTP_404_NOT_FOUND)
 
 class InventoryShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
@@ -1387,7 +1389,7 @@ class DetailIndexAPIView(APIView):
 class DetailShowAPIView(APIView):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated, CustomPermission]
-    required_permissions = ['view_detal']
+    required_permissions = ['view_detail']
     def get(self, request, pk):
         try:
             Detail_obj = Detail.objects.filter(pk=pk).first()
